@@ -1,3 +1,5 @@
+![LibSDR Banner](banner.png)
+
 # LibSDR
 LibSDR is easy to use, low latency, and modular Software Defined Radio library, fully written in C# .NET code with no external dependencies or processes.
 
@@ -25,8 +27,8 @@ SDRRadio radio = new SDRRadio(new SDRRadioConfig
 Now, open your output. For this example, we'll use a .WAV file as an output. Use a ``WavReceiver`` and specify to use 16 bits per sample. You can use 8 and 32 as well, but 32 is overkill.
 
 ```csharp
-outputFile = new FileStream("E:\\test_demod_audio.wav", FileMode.Create);
-output = new WavReceiver(outputFile, 16);
+FileStream outputFile = new FileStream("E:\\test_demod_audio.wav", FileMode.Create);
+WavReceiver output = new WavReceiver(outputFile, 16);
 ```
 
 Now, open your input. We'll use an IQ file for this example. View the input section for more info.
