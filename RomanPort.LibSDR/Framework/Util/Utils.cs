@@ -49,18 +49,9 @@ namespace RomanPort.LibSDR.Framework.Util
             }
         }
 
-        private const string Libc = "msvcrt.dll";
-
-        [DllImport(Libc, EntryPoint = "memmove", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void* Memmove(void* dest, void* src, int len);
-
-        [DllImport(Libc, EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void* Memcpy(void* dest, void* src, int len);
-
-        [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod", SetLastError = true)]
-        public static extern uint TimeBeginPeriod(uint uMilliseconds);
-
-        [DllImport("winmm.dll", EntryPoint = "timeEndPeriod", SetLastError = true)]
-        public static extern uint TimeEndPeriod(uint uMilliseconds);
+        public static void Memcpy(void* dest, void* src, int len)
+        {
+            Buffer.MemoryCopy(src, dest, len, len);
+        }
     }
 }

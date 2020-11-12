@@ -1,4 +1,5 @@
 ﻿using RomanPort.LibSDR.Framework;
+using RomanPort.LibSDR.Framework.Exceptions;
 using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
@@ -42,7 +43,7 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
         {
             //Open
             if (NativeMethods.rtlsdr_open(out device, index) != RTL_SUCCESS_OPCODE)
-                throw new Exception("Failed to open RTL device.");
+                throw new RadioNotFoundException();
 
             //Load device gains
             int supportedGainsCount = NativeMethods.rtlsdr_get_tuner_gains(device, null);
@@ -71,25 +72,29 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
 
         public void SetSampleRate(uint sampleRate)
         {
-            if(NativeMethods.rtlsdr_set_sample_rate(device, sampleRate) != RTL_SUCCESS_OPCODE)
-                throw new Exception("Failed to access RTL device.");
+            int opcode = NativeMethods.rtlsdr_set_sample_rate(device, sampleRate);
+            if (opcode != RTL_SUCCESS_OPCODE)
+                throw new RtlDeviceErrorException(opcode);
         }
 
         public void SetCenterFreq(uint centerFreq)
         {
-            if (NativeMethods.rtlsdr_set_center_freq(device, centerFreq) != RTL_SUCCESS_OPCODE)
-                throw new Exception("Failed to access RTL device.");
+            int opcode = NativeMethods.rtlsdr_set_center_freq(device, centerFreq);
+            if (opcode != RTL_SUCCESS_OPCODE)
+                throw new RtlDeviceErrorException(opcode);
         }
 
         public void SetManualGain(int gain)
         {
             //Change mode
-            if (NativeMethods.rtlsdr_set_tuner_gain_mode(device, 1) != RTL_SUCCESS_OPCODE)
-                throw new Exception("Failed to access RTL device.");
+            int opcode = NativeMethods.rtlsdr_set_tuner_gain_mode(device, 1);
+            if (opcode != RTL_SUCCESS_OPCODE)
+                throw new RtlDeviceErrorException(opcode);
 
             //Change gain
-            if (NativeMethods.rtlsdr_set_tuner_gain(device, gain) != RTL_SUCCESS_OPCODE)
-                throw new Exception("Failed to access RTL device.");
+            opcode = NativeMethods.rtlsdr_set_tuner_gain(device, gain);
+            if (opcode != RTL_SUCCESS_OPCODE)
+                throw new RtlDeviceErrorException(opcode);
         }
 
         public void SetAutomaticGain()

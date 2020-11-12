@@ -31,10 +31,10 @@ namespace RomanPort.LibSDR.Framework
         public abstract void OnAttached(int bufferSize);
 
         /// <summary>
-        /// Called when the sample rate of the IQ input is changed.
+        /// Called when the sample rate of the IQ input is changed. Returns the sample rate of the output audio
         /// </summary>
         /// <param name="sampleRate"></param>
-        public abstract void OnInputSampleRateChanged(float sampleRate);
+        public abstract float OnInputSampleRateChanged(float sampleRate);
         public abstract void Dispose();
     }
 }

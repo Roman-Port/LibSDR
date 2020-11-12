@@ -52,12 +52,14 @@ namespace RomanPort.LibSDR.Framework.Extras
             for (int i = 0; i < blockSize; i++)
                 output[i] = 0;
             
-            //Total all blocks
+            //Total all blocks and also weigh them
             int readableBlocks = (int)Math.Min(totalBlockIndex, blockCount);
-            for(int i = 0; i<readableBlocks; i++)
+            for (int i = 0; i<readableBlocks; i++)
             {
                 for (int j = 0; j < blockSize; j++)
+                {
                     output[j] += bufferPtr[(i * blockSize) + j];
+                }
             }
 
             //Divide all by the blocks read to get the final average

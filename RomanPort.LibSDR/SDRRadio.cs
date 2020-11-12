@@ -15,6 +15,9 @@ namespace RomanPort.LibSDR
     {
         public event SDRRadioIqSamplesEventArgs OnIqSamplesAvailable;
         public event SDRRadioAudioSamplesEventArgs OnAudioSamplesAvailable;
+        public event SDRRadioOpenedEventArgs OnRadioOpened;
+        public event SDRRadioClosedEventArgs OnRadioClosing;
+        public event SDRRadioClosedEventArgs OnRadioClosed;
 
         //Modules. These may be null and are created using the "EnableX" functions
         public ComplexFftView fft;
@@ -45,7 +48,7 @@ namespace RomanPort.LibSDR
         private UnsafeBuffer demodIqBuffer;
         private Complex* demodIqBufferPtr;
 
-        private IIQSource source;
+        public IIQSource source;
         public float iqSampleRate;
         private Thread workerThread;
 
@@ -63,10 +66,10 @@ namespace RomanPort.LibSDR
             demodIqBufferPtr = (Complex*)demodIqBuffer;
         }
 
-        public ComplexFftView EnableFFT(int fftBinSize = 2048, int fftInterval = 32, int fftAveragingSize = 10)
+        public ComplexFftView EnableFFT(int fftBinSize = 2048, int fftAveragingSize = 10)
         {
             if(fft == null)
-                fft = new ComplexFftView(fftBinSize, fftInterval, fftAveragingSize);
+                fft = new ComplexFftView(fftBinSize, fftAveragingSize);
             return fft;
         }
 
@@ -93,8 +96,10 @@ namespace RomanPort.LibSDR
 
             //Configure
             status = SDRRadioStatus.RUNNING;
-            fft?.Configure(iqSampleRate);
             throttle = new Throttle(iqSampleRate, -1f * iqSampleRate);
+
+            //Send events
+            OnRadioOpened?.Invoke(iqSampleRate);
 
             //Start worker thread
             workerThread = new Thread(RunWorkerThread);
@@ -112,9 +117,15 @@ namespace RomanPort.LibSDR
             //Request stop
             status = SDRRadioStatus.STOPPING;
 
+            //Send events
+            OnRadioClosing?.Invoke();
+
             //Wait
             while (status != SDRRadioStatus.STOPPED)
                 Thread.Sleep(10);
+
+            //Send events
+            OnRadioClosed?.Invoke();
         }
 
         public void SetDemodulator(IDemodulator demodulator, float demodBandwidth)
@@ -206,4 +217,6 @@ namespace RomanPort.LibSDR
 
     public unsafe delegate void SDRRadioIqSamplesEventArgs(Complex* buffer, int samplesRead);
     public unsafe delegate void SDRRadioAudioSamplesEventArgs(float* left, float* right, int samplesRead);
+    public unsafe delegate void SDRRadioOpenedEventArgs(float iqSampleRate);
+    public unsafe delegate void SDRRadioClosedEventArgs();
 }

@@ -8,7 +8,7 @@ namespace RomanPort.LibSDR.Framework.FFT
 {
     public unsafe class ComplexFftView : FftView
     {
-        public ComplexFftView(int fftBins, int interval, int averageSampleCount) : base(fftBins, fftBins, interval, averageSampleCount)
+        public ComplexFftView(int fftBins, int averageSampleCount) : base(fftBins, fftBins, averageSampleCount)
         {
             
         }
@@ -20,9 +20,6 @@ namespace RomanPort.LibSDR.Framework.FFT
 
             //Process
             BaseProcessSamples();
-
-            //Send events
-            BroadcastEvents(fftBins);
         }
     }
 }

@@ -1,53 +1,379 @@
 ﻿using RomanPort.LibSDR.Demodulators;
-using RomanPort.LibSDR.Extras.RDS.Commands;
-using RomanPort.LibSDR.Extras.RDS.Features;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace RomanPort.LibSDR.Extras.RDS
 {
+    /// <summary>
+    /// RDS client using spec based off of http://www.interactive-radio-system.com/docs/EN50067_RDS_Standard.pdf
+    /// </summary>
     public class RDSClient
     {
-        /// <summary>
-        /// The program identification code
-        /// </summary>
-        public ushort? piCode;
-
+        private const int HEADER_BITS = 11;
+        private const int HEADER_OFFSET = 16 - HEADER_BITS - 1;
+        
         /// <summary>
         /// Set to true when ANY valid RDS frame is found
         /// </summary>
         public bool rdsSupported;
 
         /// <summary>
-        /// The station name type
+        /// The program identification code. Set if rdsSupported is true
         /// </summary>
-        public RDSFeatureStationName featureStationName;
+        public ushort piCode;
+        public event RDSEventPiCodeUpdated OnPiCodeUpdated;
 
         /// <summary>
-        /// The station radio text
+        /// Set to true if the station has claimed to send traffic data. Uses the traffic program code. Set if rdsSupported is true
         /// </summary>
-        public RDSFeatureRadioText featureRadioText;
+        public bool trafficSupported;
+        public event RDSEventTrafficUpdated OnTrafficSupportedUpdated;
 
         /// <summary>
-        /// Called when we get any frame
+        /// The program type specified by the PTY. Set if rdsSupported is true
         /// </summary>
-        public event RDSFrameReceivedEventArgs RDSFrameReceivedEvent;
+        public byte programTypeCode;
+        public event RDSEventProgramTypeUpdated OnProgramTypeUpdated;
+
+        public event RDSEventResetArgs OnReset;
+
+        /* PROGRAM SERVICE NAME */
 
         /// <summary>
-        /// Called when we reset the RDS session. Features should clear data
+        /// Set to true when we get a complete program service name
         /// </summary>
-        public event RDSSessionResetEventArgs RDSSessionResetEvent;
+        public bool psComplete;
 
         /// <summary>
-        /// Called when the PI code updates
+        /// The current, complete, program service name
         /// </summary>
-        public event RDSSessionPiCodeEventArgs OnPiCodeUpdated;
+        public string psName;
+
+        /// <summary>
+        /// The in-progress program service name. May be incomplete
+        /// </summary>
+        public char[] psBuffer;
+
+        public event RDSEventPsNameUpdated OnPsNameUpdated;
+        public event RDSEventPsBufferUpdated OnPsBufferUpdated;
+
+        /* RADIO TEXT */
+
+        /// <summary>
+        /// Set to true when we get a complete Radio Text frame
+        /// </summary>
+        public bool rtComplete;
+
+        /// <summary>
+        /// The current, complete, Radio Text
+        /// </summary>
+        public string rtText;
+
+        /// <summary>
+        /// The in-progress RadioText. May be incomplete.
+        /// </summary>
+        public char[] rtBuffer;
+
+        private bool _rtLastAbFlag;
+
+        public event RDSEventRtTextUpdated OnRtTextUpdated;
+        public event RDSEventRtBufferUpdated OnRtBufferUpdated;
+        public event RDSEventRtBufferCleared OnRtBufferCleared;
+
+        /* TIME */
+
+        /// <summary>
+        /// Set to true when we get a valid time packet
+        /// </summary>
+        public bool timeComplete;
+
+        /// <summary>
+        /// The last time we've got
+        /// </summary>
+        public DateTime timeLast;
+
+        /// <summary>
+        /// Local offset
+        /// </summary>
+        public TimeSpan timeOffset;
+
+        public event RDSEventTimeUpdated OnTimeUpdated;
 
         public RDSClient()
         {
-            featureStationName = new RDSFeatureStationName(this);
-            featureRadioText = new RDSFeatureRadioText(this);
+            //Prepare Progam Serivce name
+            psComplete = false;
+            psName = "        ";
+            psBuffer = new char[8];
+
+            //Prepare Radio Text
+            rtComplete = false;
+            rtText = "";
+            rtBuffer = new char[64];
+        }
+
+        public void ProcessFrameBigEndian(ushort inGroupA, ushort inGroupB, ushort inGroupC, ushort inGroupD)
+        {
+            //Convert from big endian systems (UNTESTED)
+            if (!BitConverter.IsLittleEndian)
+            {
+                inGroupA = ((ushort)((inGroupA >> 8) | (inGroupA << 8)));
+                inGroupB = ((ushort)((inGroupB >> 8) | (inGroupB << 8)));
+                inGroupC = ((ushort)((inGroupC >> 8) | (inGroupC << 8)));
+                inGroupD = ((ushort)((inGroupD >> 8) | (inGroupD << 8)));
+            }
+
+            //Process frame
+            ProcessFrame(new RDSFrame
+            {
+                a = inGroupA,
+                b = inGroupB,
+                c = inGroupC,
+                d = inGroupD
+            });
+        }
+
+        public void ProcessFrame(RDSFrame frame)
+        {
+            //Get the PI code from the first block. We flip this because that's how it's familiar
+            ushort piCode = (ushort)((frame.a >> 8) | (frame.a << 8));
+
+            //Decode header data that will always exist
+            byte groupTypeCode = (byte)((frame.b >> (16 - 5)) & 0b0000000000011111);
+            bool trafficSupported = 1 == ((frame.b >> (16 - 6)) & 0b0000000000000001);
+            byte programTypeCode = (byte)((frame.b >> (16 - 11)) & 0b0000000000011111);
+
+            //Send updated events for these
+            if(this.piCode != piCode)
+            {
+                this.piCode = piCode;
+                OnPiCodeUpdated?.Invoke(this, piCode);
+            }
+            if (this.trafficSupported != trafficSupported)
+            {
+                this.trafficSupported = trafficSupported;
+                OnTrafficSupportedUpdated?.Invoke(this, trafficSupported);
+            }
+            if (this.programTypeCode != programTypeCode)
+            {
+                this.programTypeCode = programTypeCode;
+                OnProgramTypeUpdated?.Invoke(this, programTypeCode);
+            }
+
+            //We'll now handle decoding of this frame
+            switch(groupTypeCode)
+            {
+                case 0b00000: ProcessFramePayload_BasicInfo(frame); break;
+                case 0b00001: ProcessFramePayload_BasicInfo(frame); break;
+                case 0b00100: ProcessFramePayload_RadioTextA(frame); break;
+                case 0b00101: ProcessFramePayload_RadioTextB(frame); break;
+                case 0b01000: ProcessFramePayload_ClockTime(frame); break;
+            }
+        }
+
+        /// <summary>
+        /// Processes 0A and 0B "basic tuning and switching" frame types 0b00000 and 0b00001
+        /// </summary>
+        private void ProcessFramePayload_BasicInfo(RDSFrame frame)
+        {
+            //Read the header flags
+            bool flagTa = 1 == ((frame.b >> (HEADER_OFFSET - 0)) & 0b0000000000000001);
+            bool flagMs = 1 == ((frame.b >> (HEADER_OFFSET - 1)) & 0b0000000000000001);
+            bool flagDi = 1 == ((frame.b >> (HEADER_OFFSET - 2)) & 0b0000000000000001);
+
+            //Get the code bits. These are just used for the text for the most part just for the PS name
+            byte decoderControlCode = (byte)((frame.b >> (HEADER_OFFSET - 4)) & 0b0000000000000011);
+
+            //Get the two PS code characters
+            char psA = (char)((frame.d >> 8) & 0x00FF);
+            char psB = (char)((frame.d >> 0) & 0x00FF);
+
+            //Write to the PS buffer
+            psBuffer[(decoderControlCode * 2) + 0] = psA;
+            psBuffer[(decoderControlCode * 2) + 1] = psB;
+
+            //Check if we've completed it
+            if(decoderControlCode == 3)
+            {
+                //Completed!
+                //Update state
+                psName = new string(psBuffer);
+                psComplete = true;
+
+                //Fire events
+                OnPsNameUpdated?.Invoke(this, psName);
+            }
+
+            //Send updated events
+            OnPsBufferUpdated?.Invoke(this, psBuffer);
+        }
+
+        /// <summary>
+        /// Processes a 2A "RadioText" frame type 0b00100
+        /// </summary>
+        /// <param name="frame"></param>
+        private void ProcessFramePayload_RadioTextA(RDSFrame frame)
+        {
+            //Read the header flags
+            bool flagAb = 1 == ((frame.b >> (HEADER_OFFSET - 0)) & 0b0000000000000001);
+
+            //Get the index and multiply it by 4, as that is the spacing
+            int addressIndex = (frame.b & 0b0000000000001111) * 4;
+
+            //Check if we should reset
+            if (flagAb != _rtLastAbFlag && addressIndex == 0)
+            {
+                //Clear buffer
+                for (int i = 0; i < rtBuffer.Length; i++)
+                    rtBuffer[i] = (char)0x00;
+
+                //Update state
+                _rtLastAbFlag = flagAb;
+
+                //Send event
+                OnRtBufferCleared?.Invoke(this);
+            }
+
+            //Write all
+            rtBuffer[addressIndex + 0] = (char)((frame.c >> 8) & 0x00FF);
+            rtBuffer[addressIndex + 1] = (char)((frame.c >> 0) & 0x00FF);
+            rtBuffer[addressIndex + 2] = (char)((frame.d >> 8) & 0x00FF);
+            rtBuffer[addressIndex + 3] = (char)((frame.d >> 0) & 0x00FF);
+
+            //Search this string to see if we reached the end
+            int endIndex = -1;
+            for(int i = addressIndex; i < addressIndex + 4; i++)
+            {
+                if(rtBuffer[i] == (char)0x0A)
+                {
+                    endIndex = i;
+                    break;
+                }
+            }
+
+            //Send buffer updated events
+            OnRtBufferUpdated?.Invoke(this, rtBuffer);
+
+            //Handle ending if we did
+            if(endIndex != -1)
+            {
+                //Convert to string and update state
+                rtText = new string(rtBuffer, 0, endIndex);
+                rtComplete = true;
+
+                //Send event
+                OnRtTextUpdated?.Invoke(this, rtText);
+            }
+        }
+
+        /// <summary>
+        /// Processes a 2B "RadioText" frame type 0b00101
+        /// </summary>
+        /// <param name="frame"></param>
+        private void ProcessFramePayload_RadioTextB(RDSFrame frame)
+        {
+            //Read the header flags
+            bool flagAb = 1 == ((frame.b >> (HEADER_OFFSET - 0)) & 0b0000000000000001);
+
+            //Get the index and multiply it by 2, as that is the spacing
+            int addressIndex = (frame.b & 0b0000000000001111) * 2;
+
+            //Check if we should reset
+            if (flagAb != _rtLastAbFlag && addressIndex == 0)
+            {
+                //Clear buffer
+                for (int i = 0; i < rtBuffer.Length; i++)
+                    rtBuffer[i] = (char)0x00;
+
+                //Update state
+                _rtLastAbFlag = flagAb;
+
+                //Send event
+                OnRtBufferCleared?.Invoke(this);
+            }
+
+            //Write all
+            rtBuffer[addressIndex + 0] = (char)((frame.d >> 8) & 0x00FF);
+            rtBuffer[addressIndex + 1] = (char)((frame.d >> 0) & 0x00FF);
+
+            //Search this string to see if we reached the end
+            int endIndex = -1;
+            for (int i = addressIndex; i < addressIndex + 4; i++)
+            {
+                if (rtBuffer[i] == (char)0x0A)
+                {
+                    endIndex = i;
+                    break;
+                }
+            }
+
+            //Send buffer updated events
+            OnRtBufferUpdated?.Invoke(this, rtBuffer);
+
+            //Handle ending if we did
+            if (endIndex != -1)
+            {
+                //Convert to string and update state
+                rtText = new string(rtBuffer, 0, endIndex);
+                rtComplete = true;
+
+                //Send event
+                OnRtTextUpdated?.Invoke(this, rtText);
+            }
+        }
+
+        /// <summary>
+        /// Processes a 4A "Clock-time and date" frame 0b01000
+        /// </summary>
+        private void ProcessFramePayload_ClockTime(RDSFrame frame)
+        {
+            //Read julian day code
+            uint dayCode = (uint)((frame.c >> 1) & 0b0111111111111111);
+            dayCode |= (uint)(((frame.b >> (HEADER_OFFSET - 4)) & 0b0000000000000011) << 15);
+
+            //Decode day code according to Annex G of the linked document
+            //This is in UTC
+            int year = (int)((dayCode - 15078.2f) / 365.25f);
+            int month = (int)((dayCode - 14956.1f - (int)(year * 365.25f)) / 30.6001f);
+            int day = (int)dayCode - 14956 - ((int)(year * 365.25f)) - ((int)(month * 30.6001f));
+            int k;
+            if (month == 14 || month == 15)
+                k = 1;
+            else
+                k = 0;
+            year += 1900 + k;
+            month -= 1 - (k * 12);
+
+            //Get the hour
+            int localHour = ((frame.d >> 12) & 0b0000000000001111);
+            localHour |= ((frame.c & 0b0000000000000001) << 4);
+
+            //Get the minute
+            int localMinute = ((frame.d >> 6) & 0b0000000000111111);
+
+            //Get the local time offset, in half hours. Also calculate the sign
+            int localOffsetParts = (frame.d & 0b0000000000011111);
+            if ((frame.d & 0b0000000000100000) != 0)
+                localOffsetParts = -localOffsetParts;
+
+            //Create a UTC DateTime from the UTC portion
+            DateTime time = new DateTime(year, month, day, 0, 0, 0, 0, DateTimeKind.Local);
+
+            //Convert the local hour and minute to a TimeSpan we'll save
+            TimeSpan localOffset = new TimeSpan(0, 30 * localOffsetParts, 0);
+
+            //Convert to local time
+            DateTime localTime = time.AddMinutes((localHour * 60) + (localOffsetParts * 30) + localMinute);
+
+            //Set
+            this.timeLast = localTime;
+            this.timeOffset = localOffset;
+            this.timeComplete = true;
+
+            //Send event
+            OnTimeUpdated?.Invoke(this, localTime, localOffset);
         }
 
         public static bool TryGetCallsign(ushort code, out string callsign)
@@ -75,23 +401,6 @@ namespace RomanPort.LibSDR.Extras.RDS
             return callLetters[0] == 'K' || callLetters[0] == 'W';
         }
 
-        public RDSCommand DecodeFrame(ushort inGroupA, ushort inGroupB, ushort inGroupC, ushort inGroupD)
-        {
-            //Decode
-            RDSCommand cmd = RDSCommand.ReadRdsFrame(inGroupA, inGroupB, inGroupC, inGroupD);
-
-            //Update PI code and supported flag
-            if (piCode != cmd.programIdentificationCode)
-                OnPiCodeUpdated?.Invoke(this, cmd.programIdentificationCode);
-            piCode = cmd.programIdentificationCode;
-            rdsSupported = true;
-
-            //Send events
-            RDSFrameReceivedEvent?.Invoke(cmd, this);
-
-            return cmd;
-        }
-
         internal void SubscribeFmDemodulator(WbFmDemodulator demod)
         {
             demod.UseRdsDemodulator();
@@ -100,7 +409,7 @@ namespace RomanPort.LibSDR.Extras.RDS
 
         private void Demod_OnRdsFrame(ushort frameA, ushort frameB, ushort frameC, ushort frameD, WbFmDemodulator demodulator)
         {
-            DecodeFrame(frameA, frameB, frameC, frameD);
+            ProcessFrameBigEndian(frameA, frameB, frameC, frameD);
         }
 
         /// <summary>
@@ -108,13 +417,14 @@ namespace RomanPort.LibSDR.Extras.RDS
         /// </summary>
         public void Reset()
         {
-            piCode = null;
             rdsSupported = false;
-            RDSSessionResetEvent?.Invoke(this);
+            piCode = 0;
+            psComplete = false;
+            rtComplete = false;
+            timeComplete = false;
+            psBuffer = new char[8];
+            rtBuffer = new char[64];
+            OnReset?.Invoke(this);
         }
     }
-
-    public delegate void RDSFrameReceivedEventArgs(RDSCommand frame, RDSClient session);
-    public delegate void RDSSessionResetEventArgs(RDSClient session);
-    public delegate void RDSSessionPiCodeEventArgs(RDSClient session, ushort piCode);
 }

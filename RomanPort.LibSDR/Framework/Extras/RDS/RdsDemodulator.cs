@@ -27,7 +27,7 @@ namespace RomanPort.LibSDR.Framework.Extras.RDS
         private readonly IirFilter* _syncFilter;
         private readonly UnsafeBuffer _syncFilterBuffer;
 
-        private readonly IQFirFilter _baseBandFilter = new IQFirFilter(null, 1);
+        private readonly IQFirFilter _baseBandFilter = new IQFirFilter(null);
         private readonly FirFilter _matchedFilter = new FirFilter();
 
         private float _lastSync;
@@ -71,8 +71,6 @@ namespace RomanPort.LibSDR.Framework.Extras.RDS
             _matchedFilter.Dispose();
         }
 
-        //private static LibSDR.Extras.WavEncoder t;
-
         public void Configure(float sampleRate)
         {
             _osc->SampleRate = sampleRate;
@@ -87,8 +85,6 @@ namespace RomanPort.LibSDR.Framework.Extras.RDS
             _decimator = new IQDecimator(decimationStageCount, sampleRate, true);
             _decimationFactor = (int)Math.Pow(2.0, decimationStageCount);
             _demodulationSampleRate = sampleRate / _decimationFactor;
-
-            //t = new LibSDR.Extras.WavEncoder(new System.IO.FileStream("E:\\test_rds.wav", System.IO.FileMode.Create), (int)_demodulationSampleRate, 2, 16);
 
             var coefficients = FilterBuilder.MakeLowPassKernel(_demodulationSampleRate, 200, 2500, WindowType.BlackmanHarris4);
             _baseBandFilter.SetCoefficients(coefficients);

@@ -54,9 +54,9 @@ namespace RomanPort.LibSDR.Demodulators
             
         }
 
-        public override void OnInputSampleRateChanged(float sampleRate)
+        public override float OnInputSampleRateChanged(float sampleRate)
         {
-            
+            return sampleRate;
         }
 
         public override void Dispose()

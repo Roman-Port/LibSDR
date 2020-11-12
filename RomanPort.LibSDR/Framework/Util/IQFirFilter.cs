@@ -1,4 +1,5 @@
 ﻿using RomanPort.LibSDR.Framework.Extras;
+using RomanPort.LibSDR.Framework.Multithreading;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,13 +10,15 @@ namespace RomanPort.LibSDR.Framework.Util
     {
         private readonly FirFilter _rFilter;
         private readonly FirFilter _iFilter;
+        private readonly MultithreadWorker multithread;
 
         //private ThreadedWorker worker;
 
-        public IQFirFilter(float[] coefficients, int decimationFactor = 1)
+        public IQFirFilter(float[] coefficients, MultithreadWorker multithread = null, int decimationFactor = 1)
         {
             _rFilter = new FirFilter(coefficients, decimationFactor);
             _iFilter = new FirFilter(coefficients, decimationFactor);
+            this.multithread = multithread;
             //worker = new ThreadedWorker();
         }
 
@@ -28,46 +31,34 @@ namespace RomanPort.LibSDR.Framework.Util
         {
             _rFilter.Dispose();
             _iFilter.Dispose();
-            //worker.Stop();
             GC.SuppressFinalize(this);
         }
 
         public void Process(Complex* iq, int length)
         {
             var ptr = (float*)iq;
-            //worker.StartExecute(new ThreadedCmd(ptr, length, _iFilter));
-            _rFilter.ProcessInterleaved(ptr, length);
-            _iFilter.ProcessInterleaved(ptr, length);
-            //worker.EndExecute();
+            if (multithread == null)
+            {
+                //Run both on this thread
+                _rFilter.ProcessInterleaved(ptr, length);
+                _iFilter.ProcessInterleaved(ptr + 1, length);
+            } else
+            {
+                //Run one on other thread while we process
+                multithread.BeginWork(() =>
+                {
+                    _rFilter.ProcessInterleaved(ptr, length);
+                    return null;
+                });
+                _iFilter.ProcessInterleaved(ptr + 1, length);
+                multithread.EndWork();
+            }
         }
 
         public void SetCoefficients(float[] coefficients)
         {
             _rFilter.SetCoefficients(coefficients);
             _iFilter.SetCoefficients(coefficients);
-        }
-
-        private struct ThreadedCmd
-        {
-            public float* ptr;
-            public int len;
-            public FirFilter filter;
-
-            public ThreadedCmd(float* ptr, int len, FirFilter filter)
-            {
-                this.ptr = ptr;
-                this.len = len;
-                this.filter = filter;
-            }
-        }
-
-        private class ThreadedWorker : ThreadedCommandExecuter<ThreadedCmd, ThreadedCmd>
-        {
-            public override ThreadedCmd Compute(ThreadedCmd cmd)
-            {
-                cmd.filter.ProcessInterleaved(cmd.ptr + 1, cmd.len);
-                return cmd;
-            }
         }
     }
 }

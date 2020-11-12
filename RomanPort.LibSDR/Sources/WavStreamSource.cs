@@ -24,6 +24,8 @@ namespace RomanPort.LibSDR.Sources
 
         private float? queuedSeek; //If not null, we'll jump to these seconds into the recording when we next read samples
 
+        public long totalSamples;
+
         public WavStreamSource(Stream source, bool keepSourceOpen = false, float startSeconds = 0)
         {
             this.source = source;
@@ -64,6 +66,9 @@ namespace RomanPort.LibSDR.Sources
             //Open buffer
             bytesPerSample = bitsPerSample / 8;
             dataBuffer = new byte[bufferLength * bytesPerSample * 2];
+
+            //Get
+            totalSamples = (source.Length - 44) / bytesPerSample / channels;
 
             return fileSampleRate;
         }

@@ -3,9 +3,11 @@ using RomanPort.LibSDR.Framework;
 using RomanPort.LibSDR.Framework.Extras;
 using RomanPort.LibSDR.Framework.Extras.RDS;
 using RomanPort.LibSDR.Framework.FFT;
+using RomanPort.LibSDR.Framework.Resamplers.Decimators;
 using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace RomanPort.LibSDR.Demodulators
@@ -30,6 +32,9 @@ namespace RomanPort.LibSDR.Demodulators
 
         /* Private */
         private float sampleRate;
+        private float decimatedSampleRate;
+        private int outputDecimationRate; //Decimation rate of the output audio
+        private bool fast;
 
         private RdsDemodulator rdsDemodulator;
         private bool rdsEnabled;
@@ -45,8 +50,8 @@ namespace RomanPort.LibSDR.Demodulators
         private float* _channelBPtr;
         private FirFilter _channelAFilter;
         private FirFilter _channelBFilter;
-        private FloatDecimator _channelADecimator;
-        private FloatDecimator _channelBDecimator;
+        private SdrFloatDecimator _channelADecimator;
+        private SdrFloatDecimator _channelBDecimator;
 
         private float _deemphasisAlpha;
         private float _deemphasisAvgL;
@@ -65,8 +70,11 @@ namespace RomanPort.LibSDR.Demodulators
         private const int STEREO_PILOT_FREQ = 19000;
         private const float AUDIO_GAIN = 1f;
 
-        public WbFmDemodulator()
+        public WbFmDemodulator(int outputDecimationRate = 1, bool fast = false)
         {
+            this.outputDecimationRate = outputDecimationRate;
+            this.fast = fast;
+
             //Make PLL
             _pllBuffer = UnsafeBuffer.Create(sizeof(Pll));
             _pll = (Pll*)_pllBuffer;
@@ -83,10 +91,10 @@ namespace RomanPort.LibSDR.Demodulators
             rdsDemodulator = new RdsDemodulator(this);
         }
 
-        public HalfFloatFftView EnableMpxFFT(int fftBinSize = 2048, int fftInterval = 32, int fftAveragingSize = 10)
+        public HalfFloatFftView EnableMpxFFT(int fftBinSize = 2048, int fftAveragingSize = 10)
         {
             if (fft == null)
-                fft = new HalfFloatFftView(fftBinSize, fftInterval, fftAveragingSize);
+                fft = new HalfFloatFftView(fftBinSize, fftAveragingSize);
             return fft;
         }
 
@@ -131,7 +139,7 @@ namespace RomanPort.LibSDR.Demodulators
             if(rdsEnabled)
                 rdsDemodulator.Process(_mpxBufferPtr, count);
 
-            return count;
+            return count / outputDecimationRate;
         }
 
         public override void OnAttached(int bufferLen)
@@ -143,10 +151,6 @@ namespace RomanPort.LibSDR.Demodulators
             //Create L-R buffer
             _channelBBuffer = UnsafeBuffer.Create(bufferLen, sizeof(float));
             _channelBPtr = (float*)_channelBBuffer;
-
-            //Make decimators
-            _channelADecimator = new FloatDecimator(3);
-            _channelBDecimator = new FloatDecimator(3);
 
             //Make raw audio buffer. This serves as a holder for audio as it's being demodulated
             _mpxBuffer = UnsafeBuffer.Create(bufferLen * 2, sizeof(float));
@@ -162,31 +166,34 @@ namespace RomanPort.LibSDR.Demodulators
             audioTempRBufferPtr = (float*)audioTempRBuffer;
         }
 
-        public override void OnInputSampleRateChanged(float sampleRate)
+        public override float OnInputSampleRateChanged(float sampleRate)
         {
             //Update
             this.sampleRate = sampleRate;
-            
+            decimatedSampleRate = sampleRate / outputDecimationRate;
+
             //Configure PLL
             _pll->SampleRate = sampleRate;
 
             //Make pilot filter
             _pilotFilterBuffer = UnsafeBuffer.Create(sizeof(IirFilter));
             _pilotFilter = (IirFilter*)_pilotFilterBuffer;
-            _pilotFilter->Init(IirFilterType.BandPass, STEREO_PILOT_FREQ, sampleRate, 500);
+            _pilotFilter->Init(IirFilterType.BandPass, STEREO_PILOT_FREQ, sampleRate, fast ? 200 : 500);
 
             //Create filters
-            var coefficients = FilterBuilder.MakeBandPassKernel(sampleRate, 250, MIN_BC_AUDIO_FREQ, MAX_BC_AUDIO_FREQ, WindowType.BlackmanHarris4);
-            _channelAFilter = new FirFilter(coefficients, 1);
-            _channelBFilter = new FirFilter(coefficients, 1);
+            var coefficients = FilterBuilder.MakeBandPassKernel(sampleRate, fast ? 100 : 250, MIN_BC_AUDIO_FREQ, MAX_BC_AUDIO_FREQ, WindowType.BlackmanHarris4);
+            _channelAFilter = new FirFilter(coefficients, outputDecimationRate);
+            _channelBFilter = new FirFilter(coefficients, outputDecimationRate);           
 
             //Configure Deemphasis
-            _deemphasisAlpha = (float)(1.0 - Math.Exp(-1.0 / (sampleRate * (50f * 1e-6f))));
+            _deemphasisAlpha = (float)(1.0 - Math.Exp(-1.0 / (decimatedSampleRate * (50f * 1e-6f))));
             _deemphasisAvgL = 0;
             _deemphasisAvgR = 0;
 
             //Configure RDS
             rdsDemodulator.Configure(sampleRate);
+
+            return decimatedSampleRate;
         }
 
         private void DemodulateIqSamples(Complex* iq, float* audio, int length)
@@ -216,12 +223,10 @@ namespace RomanPort.LibSDR.Demodulators
 
         private void ProcessMPXAudio(float* baseBand, float* audioL, float* audioR, int length, bool forceMono)
         {
-            int audioLength = length;
-
             //Decimate and filter L+R
             Utils.Memcpy(_channelAPtr, baseBand, length * sizeof(float));
-            //_channelADecimator.Process(_channelAPtr, length);
-            _channelAFilter.Process(_channelAPtr, audioLength);
+            int audioLength = length / outputDecimationRate;
+            _channelAFilter.Process(_channelAPtr, length);
 
             //Demodulate L - R
             for (var i = 0; i < length; i++)
@@ -254,8 +259,7 @@ namespace RomanPort.LibSDR.Demodulators
             }
 
             //Decimate and filter L-R
-            //_channelBDecimator.Process(_channelBPtr, length);
-            _channelBFilter.Process(_channelBPtr, audioLength);
+            _channelBFilter.Process(_channelBPtr, length);
 
             //Recover L and R audio channels
             for (var i = 0; i < audioLength; i++)

@@ -23,21 +23,34 @@ namespace RomanPort.LibSDR.Framework
             bufferPtr = (T*)buffer;
         }
 
-        public int Write(T* data, int count)
+        public int Write(T* data, int count, bool force = false)
         {
             //Determine the MAX number of items we can write without overwriting data and then find the max we'll actually use
-            int maxBytesWritable = Math.Min(bufferSize - itemsWaiting, count);
+            int maxBytesWritable;
+            if (force)
+                maxBytesWritable = count; //We're going to write everything, even if it overwrites data
+            else
+                maxBytesWritable = Math.Min(bufferSize - itemsWaiting, count); //Write just what is safe to write
 
-            //Begin writing bytes
-            for(int i = 0; i<maxBytesWritable; i++)
+            //Write blocks until the data wraps
+            int remaining = maxBytesWritable;
+            int inputOffset = 0;
+            while(remaining > 0)
             {
-                bufferPtr[writeIndex] = data[i];
-                writeIndex = (writeIndex + 1) % bufferSize;
+                //Determine how many of this block we can read, up until the wrap
+                int preWrapBytes = Math.Min(remaining, bufferSize - writeIndex);
+
+                //Copy
+                Utils.Memcpy(bufferPtr + writeIndex, data + inputOffset, preWrapBytes * sizeof(T));
+
+                //Update
+                remaining -= preWrapBytes;
+                inputOffset += preWrapBytes;
+                writeIndex = (writeIndex + preWrapBytes) % bufferSize;
+                itemsWaiting += preWrapBytes;
             }
 
-            itemsWaiting += maxBytesWritable;
-
-            return maxBytesWritable;
+            return inputOffset;
         }
 
         public int Read(T* output, int maxCount)
@@ -45,21 +58,35 @@ namespace RomanPort.LibSDR.Framework
             //Determine the number of bytes we're able to read
             int maxBytesReadable = Math.Min(itemsWaiting, maxCount);
 
-            //Begin reading bytes
-            for (int i = 0; i < maxBytesReadable; i++)
+            //Read blocks up until the data wraps
+            int remaining = maxBytesReadable;
+            int outputOffset = 0;
+            while(remaining > 0)
             {
-                output[i] = bufferPtr[readIndex];
-                readIndex = (readIndex + 1) % bufferSize;
+                //Determine how many of this block we can read, up until the wrap
+                int preWrapBytes = Math.Min(remaining, bufferSize - readIndex);
+
+                //Copy
+                Utils.Memcpy(output + outputOffset, bufferPtr + readIndex, preWrapBytes * sizeof(T));
+
+                //Update
+                remaining -= preWrapBytes;
+                outputOffset += preWrapBytes;
+                readIndex = (readIndex + preWrapBytes) % bufferSize;
+                itemsWaiting -= preWrapBytes;
             }
-
-            itemsWaiting -= maxBytesReadable;
-
-            return maxBytesReadable;
+            
+            return outputOffset;
         }
 
         public int GetAvailable()
         {
             return itemsWaiting;
+        }
+
+        public int GetSpaceRemaining()
+        {
+            return bufferSize - itemsWaiting;
         }
 
         public void Dispose()

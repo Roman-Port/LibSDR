@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RomanPort.LibSDR.UI", "Roma
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RomanPort.IQFileIndexingTool", "RomanPort.IQFileIndexingTool\RomanPort.IQFileIndexingTool.csproj", "{4E75E828-2390-4D55-8D72-CDB483B40AC5}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RomanPort.SDRTools.SpectrumVideoProducer", "RomanPort.SDRTools.SpectrumVideoProducer\RomanPort.SDRTools.SpectrumVideoProducer.csproj", "{CAF72A43-7BA3-4326-916E-B3F3190940F3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RomanPort.SDRTools.FmFileDemodulator", "RomanPort.SDRTools.FmFileDemodulator\RomanPort.SDRTools.FmFileDemodulator.csproj", "{D6D3BA24-EC9C-4D10-9C4D-B790701BDB17}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +37,14 @@ Global
 		{4E75E828-2390-4D55-8D72-CDB483B40AC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4E75E828-2390-4D55-8D72-CDB483B40AC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4E75E828-2390-4D55-8D72-CDB483B40AC5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CAF72A43-7BA3-4326-916E-B3F3190940F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAF72A43-7BA3-4326-916E-B3F3190940F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAF72A43-7BA3-4326-916E-B3F3190940F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAF72A43-7BA3-4326-916E-B3F3190940F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D6D3BA24-EC9C-4D10-9C4D-B790701BDB17}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D6D3BA24-EC9C-4D10-9C4D-B790701BDB17}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D6D3BA24-EC9C-4D10-9C4D-B790701BDB17}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D6D3BA24-EC9C-4D10-9C4D-B790701BDB17}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

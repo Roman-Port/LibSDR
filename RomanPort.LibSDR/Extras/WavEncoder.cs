@@ -41,6 +41,12 @@ namespace RomanPort.LibSDR.Extras
             WriteHeader();
         }
 
+        public unsafe void Write(InterleavedStereoAudio* samples, int sampleCount)
+        {
+            //Write this as if it were complexes, as they are identical
+            Write((Complex*)samples, sampleCount);
+        }
+
         public unsafe void Write(Complex* samples, int sampleCount)
         {
             //We're gonna just write this as if it were floats (because it is)

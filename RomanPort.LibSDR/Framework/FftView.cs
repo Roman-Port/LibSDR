@@ -6,18 +6,11 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Framework
 {
-    public unsafe delegate void FFTWindowAvailableEventArgs(float* window, int width);
-
     public unsafe abstract class FftView : IDisposable
     {
-        public event FFTWindowAvailableEventArgs OnFFTWindowAvailable;
-
         public int fftBins;
         public int fftOffset = -40;
-        public int interval;
         public int averageSampleCount;
-        public float fftOverlapRatio;
-        public int fftSamplesPerFrame;
 
         internal int fftBinsBufferSize;
 
@@ -33,11 +26,10 @@ namespace RomanPort.LibSDR.Framework
         private DateTime lastFftEvent;
         private MovingAverage average;
 
-        public FftView(int fftBins, int fftBinsBufferSize, int interval, int averageSampleCount)
+        public FftView(int fftBins, int fftBinsBufferSize, int averageSampleCount)
         {
             this.fftBins = fftBins;
             this.fftBinsBufferSize = fftBinsBufferSize;
-            this.interval = interval;
             this.averageSampleCount = averageSampleCount;
             average = new MovingAverage((uint)fftBins, (uint)averageSampleCount);
             CreateBuffers();
@@ -66,20 +58,6 @@ namespace RomanPort.LibSDR.Framework
             }
         }
 
-        public void Configure(float sampleRate)
-        {
-            var fftRate = fftBinsBufferSize / interval;
-            fftOverlapRatio = sampleRate / fftRate;
-            var samplesToConsume = (int)(fftBinsBufferSize * fftOverlapRatio);
-            fftSamplesPerFrame = Math.Min(samplesToConsume, fftBinsBufferSize);
-            var excessSamples = samplesToConsume - fftSamplesPerFrame;
-        }
-
-        internal void FFTWindowAvailable(float* data, int length)
-        {
-            OnFFTWindowAvailable?.Invoke(data, length);
-        }
-
         internal void BaseProcessSamples()
         {
             //Process FFT gain
@@ -96,15 +74,22 @@ namespace RomanPort.LibSDR.Framework
             average.WriteBlock(_fftSpectrumPtr + (fftBinsBufferSize - fftBins));
         }
 
-        internal void BroadcastEvents(int binCount)
+        public void GetFFTSnapshot(float* output)
         {
-            //Fire event?
-            if ((DateTime.UtcNow - lastFftEvent).TotalMilliseconds > interval)
-            {
-                lastFftEvent = DateTime.UtcNow;
-                average.ReadAverage(_fftSpectrumPtr);
-                FFTWindowAvailable(_fftSpectrumPtr, binCount);
-            }
+            average.ReadAverage(output);
+        }
+
+        public void ManagedGetFFTSnapshot(float[] output)
+        {
+            fixed (float* ptr = output)
+                GetFFTSnapshot(ptr);
+        }
+
+        public float[] ManagedGetFFTSnapshot()
+        {
+            float[] f = new float[fftBins];
+            ManagedGetFFTSnapshot(f);
+            return f;
         }
 
         public void Dispose()
