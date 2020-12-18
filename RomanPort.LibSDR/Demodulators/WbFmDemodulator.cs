@@ -1,8 +1,8 @@
 ﻿using RomanPort.LibSDR.Extras.RDS;
 using RomanPort.LibSDR.Framework;
+using RomanPort.LibSDR.Framework.Components.FFT.Processors;
 using RomanPort.LibSDR.Framework.Extras;
 using RomanPort.LibSDR.Framework.Extras.RDS;
-using RomanPort.LibSDR.Framework.FFT;
 using RomanPort.LibSDR.Framework.Resamplers.Decimators;
 using RomanPort.LibSDR.Framework.Util;
 using System;
@@ -27,7 +27,7 @@ namespace RomanPort.LibSDR.Demodulators
         public event RdsFrameEventArgs OnRdsFrame;
 
         //Modules. These may be null and are created using the "EnableX" functions
-        private HalfFloatFftView fft;
+        private FFTProcessorHalfFloat fft;
         private RDSClient rdsClient;
 
         /* Private */
@@ -91,10 +91,10 @@ namespace RomanPort.LibSDR.Demodulators
             rdsDemodulator = new RdsDemodulator(this);
         }
 
-        public HalfFloatFftView EnableMpxFFT(int fftBinSize = 2048, int fftAveragingSize = 10)
+        public FFTProcessorHalfFloat EnableMpxFFT(int fftBinSize = 2048)
         {
             if (fft == null)
-                fft = new HalfFloatFftView(fftBinSize, fftAveragingSize);
+                fft = new FFTProcessorHalfFloat(fftBinSize);
             return fft;
         }
 
@@ -124,13 +124,31 @@ namespace RomanPort.LibSDR.Demodulators
             return DemodulateBase(iq, audio, audio, count, true);
         }
 
+        /// <summary>
+        /// Demodulates the bare minimum to run RDS. Does not produce audio output.
+        /// </summary>
+        /// <param name="iq"></param>
+        /// <param name="count"></param>
+        public unsafe void DemodulateRDS(Complex* iq, int count)
+        {
+            //Demodulate MPX
+            DemodulateIqSamples(iq, _mpxBufferPtr, count);
+
+            //FFT
+            fft?.AddSamples(_mpxBufferPtr, count);
+
+            //Process RDS
+            if (rdsEnabled)
+                rdsDemodulator.Process(_mpxBufferPtr, count);
+        }
+
         private unsafe int DemodulateBase(Complex* iq, float* audioL, float* audioR, int count, bool forceMono)
         {
             //Demodulate MPX
             DemodulateIqSamples(iq, _mpxBufferPtr, count);
 
             //FFT
-            fft?.ProcessSamples(_mpxBufferPtr);
+            fft?.AddSamples(_mpxBufferPtr, count);
 
             //Process audio
             ProcessMPXAudio(_mpxBufferPtr, audioL, audioR, count, forceMono);
@@ -298,6 +316,13 @@ namespace RomanPort.LibSDR.Demodulators
             rdsDemodulator?.Dispose();
             audioTempLBuffer.Dispose();
             audioTempRBuffer.Dispose();
+        }
+
+        public override float OnOutputDecimationChanged(int decimationRate)
+        {
+            this.outputDecimationRate = decimationRate;
+            decimatedSampleRate = sampleRate / outputDecimationRate;
+            return decimatedSampleRate;
         }
     }
 }

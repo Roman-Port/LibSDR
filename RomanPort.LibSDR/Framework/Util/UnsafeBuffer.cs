@@ -41,6 +41,11 @@ namespace RomanPort.LibSDR.Framework.Util
             GC.SuppressFinalize(this);
         }
 
+        public GCHandle GcHandle
+        {
+            get => _handle;
+        }
+
         public void* Address
         {
             get { return _ptr; }

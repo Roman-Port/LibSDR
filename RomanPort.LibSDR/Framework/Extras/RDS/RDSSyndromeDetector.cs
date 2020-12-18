@@ -20,7 +20,7 @@ namespace RomanPort.LibSDR.Framework.Extras.RDS
         private const int CheckwordBitsCount = 10;
 
         private IRDSFrameReceiver evt;
-        private readonly bool _useFec = false; //Turning this off disables error correction, but also stops potential corrupted packets
+        private readonly bool _useFec = true; //Turning this off disables error correction, but also stops potential corrupted packets
         private readonly UInt16[] _blocks = new UInt16[4];
         private BlockSequence _sequence = BlockSequence.WaitBitSync;
         private UInt16 _syndrome;

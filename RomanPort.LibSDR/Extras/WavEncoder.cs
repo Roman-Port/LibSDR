@@ -6,29 +6,13 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Extras
 {
-    public class WavEncoder
+    public class WavEncoder : WavHeaderEncoder
     {
-        public const int WAV_HEADER_SIZE = 44;
-
-        public int sampleRate;
-        public short bitsPerSample = 16;
-        public short channels = 2;
-
-        private Stream underlyingStream;
-        private long fileSizeOffs;
-        private long dataSizeOffs;
-        private int audioLength;
         private byte[] fileBuffer;
         private int fileBufferSampleCount;
 
-        public WavEncoder(Stream underlyingStream, int sampleRate, short channels, short bitsPerSample, int bufferCount = 1024)
+        public WavEncoder(Stream underlyingStream, int sampleRate, short channels, short bitsPerSample, int bufferCount = 1024) : base(underlyingStream, sampleRate, bitsPerSample, channels)
         {
-            //Set
-            this.underlyingStream = underlyingStream;
-            this.sampleRate = sampleRate;
-            this.channels = channels;
-            this.bitsPerSample = bitsPerSample;
-
             //Validate
             if (bitsPerSample != 8 && bitsPerSample != 16 && bitsPerSample != 32)
                 throw new Exception("Only PCM8, PCM16, and Float32 bitsPerSample types are supported!");
@@ -132,70 +116,6 @@ namespace RomanPort.LibSDR.Extras
             {
                 throw new Exception("Unknown format.");
             }
-        }
-
-        private void WriteHeader()
-        {
-            //Calculate
-            short blockAlign = (short)(channels * (bitsPerSample / 8));
-            int avgBytesPerSec = sampleRate * (int)blockAlign;
-
-            //Write
-            WriteTag("RIFF");
-            fileSizeOffs = this.underlyingStream.Position;
-            WriteSignedInt(0);
-            WriteTag("WAVE");
-            WriteTag("fmt ");
-            WriteSignedInt(16);
-            WriteSignedShort(1); //Format tag
-            WriteSignedShort(channels);
-            WriteSignedInt(sampleRate);
-            WriteSignedInt(avgBytesPerSec);
-            WriteSignedShort(blockAlign);
-            WriteSignedShort(bitsPerSample);
-            WriteTag("data");
-            dataSizeOffs = this.underlyingStream.Position;
-            WriteSignedInt(0);
-        }
-
-        private void UpdateLength()
-        {
-            //Save current position
-            long pos = this.underlyingStream.Position;
-
-            //Update file length
-            this.underlyingStream.Position = fileSizeOffs;
-            WriteSignedInt(audioLength + 8);
-
-            //Update data length
-            this.underlyingStream.Position = dataSizeOffs;
-            WriteSignedInt(audioLength);
-
-            //Jump back
-            this.underlyingStream.Position = pos;
-        }
-
-        private void WriteTag(string tag)
-        {
-            byte[] bytes = Encoding.ASCII.GetBytes(tag);
-            underlyingStream.Write(bytes, 0, bytes.Length);
-        }
-
-        private void WriteSignedInt(int value)
-        {
-            WriteEndianBytes(BitConverter.GetBytes(value));
-        }
-
-        private void WriteSignedShort(short value)
-        {
-            WriteEndianBytes(BitConverter.GetBytes(value));
-        }
-
-        private void WriteEndianBytes(byte[] data)
-        {
-            if (!BitConverter.IsLittleEndian)
-                Array.Reverse(data);
-            underlyingStream.Write(data, 0, data.Length);
         }
     }
 }

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Framework.Resamplers.Decimators
 {
-    public unsafe class SdrComplexDecimator
+    public unsafe class SdrComplexDecimator : IDisposable
     {
         private SdrFloatDecimator decimatorA;
         private SdrFloatDecimator decimatorB;
@@ -13,6 +13,12 @@ namespace RomanPort.LibSDR.Framework.Resamplers.Decimators
         {
             decimatorA = new SdrFloatDecimator(decimation, 2, 0);
             decimatorB = new SdrFloatDecimator(decimation, 2, 1);
+        }
+
+        public void Dispose()
+        {
+            decimatorA.Dispose();
+            decimatorB.Dispose();
         }
 
         public int Process(Complex* inBuffer, int inCount, Complex* outBuffer, int outBufferLen)

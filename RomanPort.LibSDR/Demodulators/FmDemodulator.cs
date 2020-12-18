@@ -63,5 +63,10 @@ namespace RomanPort.LibSDR.Demodulators
         {
             
         }
+
+        public override float OnOutputDecimationChanged(int decimationRate)
+        {
+            throw new NotSupportedException("Only the decimation rate of 1 is supported at the moment.");
+        }
     }
 }

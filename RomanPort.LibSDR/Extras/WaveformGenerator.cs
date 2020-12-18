@@ -1,4 +1,5 @@
 ﻿using RomanPort.LibSDR.Framework;
+using RomanPort.LibSDR.Framework.Resamplers.Decimators;
 using RomanPort.LibSDR.Framework.Util;
 using RomanPort.LibSDR.Sources;
 using System;
@@ -101,7 +102,7 @@ namespace RomanPort.LibSDR.Extras
                 }
 
                 //Update
-                totalRead += read;
+                totalRead += demodRead;
 
                 //Skip
                 long skip = nextIndexSample - totalRead;

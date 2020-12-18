@@ -5,6 +5,7 @@ using RomanPort.LibSDR.Framework;
 using RomanPort.LibSDR.Framework.Util;
 using RomanPort.LibSDR.Receivers;
 using RomanPort.LibSDR.Sources;
+using RomanPort.LibSDR.Sources.Hardware.AirSpy;
 using RomanPort.LibSDR.Sources.Hardware.RTLSDR;
 using System;
 using System.IO;
@@ -21,7 +22,7 @@ namespace RomanPort.LibSDRTests
 
         static void Main(string[] args)
         {
-            //Open radio
+            /*//Open radio
             radio = new SDRRadio(new SDRRadioConfig
             {
                 bufferSize = 16384,
@@ -51,7 +52,30 @@ namespace RomanPort.LibSDRTests
             //Add events
             radio.OnAudioSamplesAvailable += Radio_OnAudioSamplesAvailable;
 
-            Console.ReadLine();
+            Console.ReadLine();*/
+
+            //Buffer
+            /*UnsafeBuffer buffer = UnsafeBuffer.Create(2048, sizeof(Complex));
+            Complex* bufferPtr = (Complex*)buffer;
+
+            //Radio
+            AirSpySource s = new AirSpySource();
+            float rate = s.Open(2048);
+
+            //Output
+            WavEncoder encoder = new WavEncoder(new FileStream("E:\\test_file.wav", FileMode.Create), (int)rate, 2, 16);
+
+            //Loop
+            Console.Write("\rWriting...");
+            long totalRead = 0;
+            int read;
+            while(true)
+            {
+                read = s.Read(bufferPtr, 2048);
+                encoder.Write(bufferPtr, read);
+                Console.Write("\rWriting..." + (totalRead += read) + " samples written");
+            }*/
+            Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
         }
 
         private static void Radio_OnAudioSamplesAvailable(float* left, float* right, int samplesRead)

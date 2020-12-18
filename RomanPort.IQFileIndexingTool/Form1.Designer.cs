@@ -71,6 +71,7 @@
             this.sliderFftRange = new System.Windows.Forms.TrackBar();
             this.mpxSpectrumView = new RomanPort.LibSDR.UI.FFTSpectrumView();
             this.fftSpectrumView1 = new RomanPort.LibSDR.UI.FFTSpectrumView();
+            this.btnTrim = new System.Windows.Forms.Button();
             this.panel1.SuspendLayout();
             this.panel2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackProgress)).BeginInit();
@@ -285,7 +286,7 @@
             this.panel2.Controls.Add(this.metaRadio);
             this.panel2.Controls.Add(this.metaSampleRate);
             this.panel2.Controls.Add(this.label14);
-            this.panel2.Location = new System.Drawing.Point(12, 411);
+            this.panel2.Location = new System.Drawing.Point(12, 407);
             this.panel2.Name = "panel2";
             this.panel2.Size = new System.Drawing.Size(939, 48);
             this.panel2.TabIndex = 16;
@@ -383,7 +384,7 @@
             this.trackProgress.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.trackProgress.LargeChange = 15;
-            this.trackProgress.Location = new System.Drawing.Point(1, 513);
+            this.trackProgress.Location = new System.Drawing.Point(1, 516);
             this.trackProgress.Maximum = 200;
             this.trackProgress.Name = "trackProgress";
             this.trackProgress.Size = new System.Drawing.Size(853, 45);
@@ -402,16 +403,16 @@
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(99, 23);
             this.btnSave.TabIndex = 18;
-            this.btnSave.Text = "Save + Copy";
+            this.btnSave.Text = "Save Full";
             this.btnSave.UseVisualStyleBackColor = true;
             this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
             // 
             // timerText
             // 
             this.timerText.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.timerText.Location = new System.Drawing.Point(852, 465);
+            this.timerText.Location = new System.Drawing.Point(852, 449);
             this.timerText.Name = "timerText";
-            this.timerText.Size = new System.Drawing.Size(99, 25);
+            this.timerText.Size = new System.Drawing.Size(99, 23);
             this.timerText.TabIndex = 19;
             this.timerText.Text = "00:00 / 00:00";
             this.timerText.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -420,9 +421,9 @@
             // 
             this.waveformView.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.waveformView.Location = new System.Drawing.Point(12, 465);
+            this.waveformView.Location = new System.Drawing.Point(12, 455);
             this.waveformView.Name = "waveformView";
-            this.waveformView.Size = new System.Drawing.Size(834, 42);
+            this.waveformView.Size = new System.Drawing.Size(834, 61);
             this.waveformView.TabIndex = 20;
             this.waveformView.TabStop = false;
             // 
@@ -430,7 +431,7 @@
             // 
             this.btnDelete.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.btnDelete.Enabled = false;
-            this.btnDelete.Location = new System.Drawing.Point(852, 493);
+            this.btnDelete.Location = new System.Drawing.Point(852, 471);
             this.btnDelete.Name = "btnDelete";
             this.btnDelete.Size = new System.Drawing.Size(99, 23);
             this.btnDelete.TabIndex = 21;
@@ -552,11 +553,24 @@
             this.fftSpectrumView1.Size = new System.Drawing.Size(616, 222);
             this.fftSpectrumView1.TabIndex = 0;
             // 
+            // btnTrim
+            // 
+            this.btnTrim.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnTrim.Enabled = false;
+            this.btnTrim.Location = new System.Drawing.Point(852, 494);
+            this.btnTrim.Name = "btnTrim";
+            this.btnTrim.Size = new System.Drawing.Size(99, 23);
+            this.btnTrim.TabIndex = 30;
+            this.btnTrim.Text = "Trim...";
+            this.btnTrim.UseVisualStyleBackColor = true;
+            this.btnTrim.Click += new System.EventHandler(this.btnTrim_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(959, 547);
+            this.Controls.Add(this.btnTrim);
             this.Controls.Add(this.label13);
             this.Controls.Add(this.sliderFftRange);
             this.Controls.Add(this.label12);
@@ -638,6 +652,7 @@
         private System.Windows.Forms.TrackBar sliderIfGain;
         private System.Windows.Forms.Label label13;
         private System.Windows.Forms.TrackBar sliderFftRange;
+        public System.Windows.Forms.Button btnTrim;
     }
 }
 

@@ -35,6 +35,13 @@ namespace RomanPort.LibSDR.Framework
         /// </summary>
         /// <param name="sampleRate"></param>
         public abstract float OnInputSampleRateChanged(float sampleRate);
+
+        /// <summary>
+        /// This is how much we decimate the output audio. It will return the new output sample rate
+        /// </summary>
+        /// <param name="decimationRate"></param>
+        /// <returns></returns>
+        public abstract float OnOutputDecimationChanged(int decimationRate);
         public abstract void Dispose();
     }
 }

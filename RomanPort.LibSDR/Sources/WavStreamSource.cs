@@ -14,7 +14,7 @@ namespace RomanPort.LibSDR.Sources
 
         private short formatTag;
         public short channels;
-        private int fileSampleRate;
+        public int fileSampleRate;
         private int avgBytesPerSec;
         private short blockAlign;
         public short bitsPerSample;
@@ -26,7 +26,27 @@ namespace RomanPort.LibSDR.Sources
 
         public long totalSamples;
 
-        public WavStreamSource(Stream source, bool keepSourceOpen = false, float startSeconds = 0)
+        public long SamplePosition
+        {
+            get
+            {
+                return (source.Position - 44) / bytesPerSample / channels;
+            }
+            set
+            {
+                source.Position = (value * bytesPerSample * channels) + 44;
+            }
+        }
+
+        public long SampleLength
+        {
+            get
+            {
+                return (source.Length - 44) / bytesPerSample / channels;
+            }
+        }
+
+        public WavStreamSource(Stream source, bool keepSourceOpen = false, float? startSeconds = null)
         {
             this.source = source;
             this.keepSourceOpen = keepSourceOpen;
@@ -120,8 +140,8 @@ namespace RomanPort.LibSDR.Sources
             for(int i = 0; i<complexesRead; i++)
             {
                 iq[i] = new Complex(
-                    ReadSampleFromBuffer(i * bytesPerSample * 2),
-                    ReadSampleFromBuffer((i * bytesPerSample * 2) + bytesPerSample)
+                    ReadSampleFromBuffer((i * bytesPerSample * 2) + bytesPerSample),
+                    ReadSampleFromBuffer(i * bytesPerSample * 2)
                     );
             }
 

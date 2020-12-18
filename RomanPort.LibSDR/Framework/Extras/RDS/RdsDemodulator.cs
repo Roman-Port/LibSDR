@@ -133,8 +133,8 @@ namespace RomanPort.LibSDR.Framework.Extras.RDS
             length /= _decimationFactor;
 
             // Filter
-            //Enabling this filters badly, and results in many bad packets. I'm not sure why.
-            //_baseBandFilter.Process(_rawPtr, length);            
+            //THIS LINE WAS PREVIOUSLY DISABLED BY ME because of a bug in filtering. I believe it's fixed now, but I will leave this note just in case
+            _baseBandFilter.Process(_rawPtr, length);            
 
             // PLL
             for (var i = 0; i < length; i++)

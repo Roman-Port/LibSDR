@@ -10,149 +10,162 @@ using System.Windows.Forms;
 using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
 using RomanPort.LibSDR.Framework.Util;
+using RomanPort.LibSDR.UI.Framework;
 
 namespace RomanPort.LibSDR.UI
 {
-    public unsafe partial class FFTSpectrumView : UserControl
+    public unsafe partial class FFTSpectrumView : FFTBaseInterfaceView
     {
-        private Bitmap _buffer;
-        private Graphics _graphics;
+        private UnsafeColor[] spectrumGradient;
+        private UnsafeColor[] spectrumGradientHalf;
 
-        private UnsafeBuffer dataBuffer;
-        private float* dataBufferPtr;
-        private int dataSize = -1;
+        private UnsafeBuffer fftBuffer;
+        private float* fftBufferPtr;
+        private int fftBufferSize;
 
-        public float maxDb = 0;
-        public float minDb = -100;
+        private UnsafeBuffer fftPixelBuffer;
+        private float* fftPixelBufferPtr;
+        private float* fftPixelMaxBufferPtr;
+        private float* fftPixelMinBufferPtr;
+
+        public static readonly UnsafeColor SPECTRUM_TOP_COLOR = new UnsafeColor( 112, 180, 255 );
+        public static readonly UnsafeColor SPECTRUM_BOTTOM_COLOR = new UnsafeColor( 0, 0, 80 );
 
         public FFTSpectrumView()
         {
             InitializeComponent();
-            _buffer = new Bitmap(ClientRectangle.Width, ClientRectangle.Height, PixelFormat.Format32bppPArgb);
-            _graphics = Graphics.FromImage(_buffer);
-
-            SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
-            SetStyle(ControlStyles.DoubleBuffer, true);
-            SetStyle(ControlStyles.UserPaint, true);
-            SetStyle(ControlStyles.AllPaintingInWmPaint, true);
-            UpdateStyles();
         }
 
-        public void UpdateFFT(float* data, int dataSize)
+        public override void RefreshFFT(float* data, int dataSize)
         {
-            //Reset buffer if needed
-            if(dataSize != this.dataSize)
+            //Ensure buffer
+            if(fftBufferSize != dataSize)
             {
-                //Free old
-                if (dataBuffer != null)
-                    dataBuffer.Dispose();
-
-                //Create new
-                dataBuffer = UnsafeBuffer.Create(dataSize, sizeof(float));
-                dataBufferPtr = (float*)dataBuffer;
-                this.dataSize = dataSize;
+                //We'll need to resize the buffer
+                if (fftBuffer != null)
+                    fftBuffer.Dispose();
+                fftBuffer = UnsafeBuffer.Create(dataSize, sizeof(float));
+                fftBufferPtr = (float*)fftBuffer;
+                fftBufferSize = dataSize;
             }
 
-            //Copy to
-            Utils.Memcpy(dataBufferPtr, data, dataSize * sizeof(float));
+            //Copy
+            Utils.Memcpy(fftBufferPtr, data, dataSize * sizeof(float));
+
+            //Invalidate to request a draw
             Invalidate();
         }
 
-        private void RenderFFT()
+        protected override void DrawableViewReset(int width, int height)
         {
-            //Clear
-            _graphics.Clear(Color.Black);
+            //Precompute the gradient for fast lookup
+            PrecomputeGradients(height);
 
-            //Get size
-            int width = ClientRectangle.Width;
-            int height = ClientRectangle.Height;
+            //Create the pixel data array (which we split into three pointers)
+            if (fftPixelBuffer != null)
+                fftPixelBuffer.Dispose();
+            fftPixelBuffer = UnsafeBuffer.Create(width * 3, sizeof(float));
+            fftPixelBufferPtr = (float*)fftPixelBuffer;
+            fftPixelMaxBufferPtr = fftPixelBufferPtr + width;
+            fftPixelMinBufferPtr = fftPixelMaxBufferPtr + width;
+        }
 
-            //Write data
-            if (dataSize != -1)
+        protected override void RenderDrawableView(int width, int height)
+        {
+            //Scale to pixel space
+            if(fftBufferPtr != null)
             {
-                //Determine if we need to draw by interpolating points or pixels
-                Point[] points;
-                if (dataSize > width)
-                {
-                    //More points than pixels. Interpolate by pixel
-                    points = new Point[width];
-                    float scale = (float)dataSize / width;
-                    for (int i = 0; i < width; i++)
-                    {
-                        //Get index to query
-                        int dataIndex = (int)(scale * i);
+                float decimationScale = fftBufferSize / (float)width;
+                for (int i = 0; i < width; i++)
+                    fftPixelBufferPtr[i] = (1 - ScaleDbToStandard(fftBufferPtr[(int)(decimationScale * i)])) * height;
+            } else
+            {
+                //No data yet. Set all to 0
+                for (int i = 0; i < width; i++)
+                    fftPixelBufferPtr[i] = 0;
+            }
+            
+            //Determine the min/max of each
+            for (int i = 1; i < width - 2; i++)
+            {
+                fftPixelMaxBufferPtr[i] = Math.Max(Math.Max(fftPixelBufferPtr[i + 1], fftPixelBufferPtr[i - 1]), fftPixelBufferPtr[i]);
+                fftPixelMinBufferPtr[i] = Math.Min(Math.Min(fftPixelBufferPtr[i + 1], fftPixelBufferPtr[i - 1]), fftPixelBufferPtr[i]);
+            }
 
-                        //Write
-                        points[i] = new Point(i, GetPixelFromData(dataBufferPtr[dataIndex], height));
+            //Determine min/max of edge pixels
+            fftPixelMaxBufferPtr[0] = Math.Max(fftPixelBufferPtr[0], fftPixelBufferPtr[1]);
+            fftPixelMinBufferPtr[0] = Math.Min(fftPixelBufferPtr[0], fftPixelBufferPtr[1]);
+            fftPixelMaxBufferPtr[width - 1] = Math.Max(fftPixelBufferPtr[width - 1], fftPixelBufferPtr[width - 2]);
+            fftPixelMinBufferPtr[width - 1] = Math.Min(fftPixelBufferPtr[width - 1], fftPixelBufferPtr[width - 2]);
+
+            //Draw each scanline
+            for (int y = 0; y<height; y++)
+            {
+                //Get pointer to these pixels
+                UnsafeColor* scanline = pixels + (y * width);
+
+                //Loop each pixel
+                for(int x = 0; x<width; x++)
+                {
+                    if (y < fftPixelMaxBufferPtr[x] && y > fftPixelBufferPtr[x])
+                    {
+                        //On the top part of a line
+                        scanline[x] = InterpColor(spectrumGradient[y], UnsafeColor.WHITE, (y - fftPixelBufferPtr[x]) / (fftPixelMaxBufferPtr[x] - fftPixelBufferPtr[x]));
+                    }
+                    else if (y < fftPixelBufferPtr[x] && y > fftPixelMinBufferPtr[x])
+                    {
+                        //On the bottom part of a line
+                        scanline[x] = InterpColor(UnsafeColor.WHITE, spectrumGradientHalf[y], (y - fftPixelMinBufferPtr[x]) / (fftPixelBufferPtr[x] - fftPixelMinBufferPtr[x]));
+                    }
+                    else if (y > fftPixelBufferPtr[x])
+                    {
+                        //Render foreground
+                        scanline[x] = spectrumGradient[y];
+                    }
+                    else if (y < fftPixelBufferPtr[x])
+                    {
+                        //Render background
+                        scanline[x] = spectrumGradientHalf[y];
+                    } else
+                    {
+                        //If this is hit, we are spot on the value
+                        //This will likely NEVER happen, but if it does, buy a lottery ticket...or check your floating point math
+                        scanline[x] = UnsafeColor.WHITE;
                     }
                 }
-                else
-                {
-                    //More pixels than points. Interpolate by point
-                    points = new Point[dataSize];
-                    float scale = (float)width / dataSize;
-                    for (int i = 0; i < dataSize; i++)
-                    {
-                        //Get index to draw
-                        int xIndex = (int)(scale * i);
-
-                        //Write
-                        points[i] = new Point(xIndex, GetPixelFromData(dataBufferPtr[i], height));
-                    }
-                }
-
-                //Draw
-                _graphics.DrawLines(new Pen(Color.Red, 1), points);
             }
         }
 
-        private int GetPixelFromData(float value, int areaHeight)
+        private void PrecomputeGradients(int height)
         {
-            //Determine place in scale
-            float pos = value / (maxDb - minDb);
-
-            //Clamp
-            if (pos > 0)
-                pos = 0;
-            if (pos < -1)
-                pos = -1;
-
-            //Get real pixel location
-            return (int)(-pos * areaHeight);
+            spectrumGradient = new UnsafeColor[height];
+            spectrumGradientHalf = new UnsafeColor[height];
+            for (int i = 0; i < height; i++)
+            {
+                float scale = i * (1 / (float)height);
+                UnsafeColor c = InterpColor(SPECTRUM_BOTTOM_COLOR, SPECTRUM_TOP_COLOR, scale);
+                spectrumGradient[i] = c;
+                spectrumGradientHalf[i] = new UnsafeColor(
+                    (byte)(c.r / 4),
+                    (byte)(c.g / 4),
+                    (byte)(c.b / 4)
+                );
+            }
         }
 
-        protected override void OnPaint(PaintEventArgs e)
+        private UnsafeColor InterpColor(UnsafeColor a, UnsafeColor b, float percent)
         {
-            ConfigureGraphics(e.Graphics);
-            RenderFFT();
-            e.Graphics.DrawImageUnscaled(_buffer, 0, 0);
+            var invPercent = 1 - percent;
+            return new UnsafeColor(
+                (byte)((a.r * percent) + (b.r * invPercent)),
+                (byte)((a.g * percent) + (b.g * invPercent)),
+                (byte)((a.b * percent) + (b.b * invPercent))
+            );
         }
 
-        protected override void OnResize(EventArgs e)
+        public override void FFTSettingsChanged()
         {
-            //Clean up
-            if(_graphics != null)
-                _graphics.Dispose();
-            if(_buffer != null)
-                _buffer.Dispose();
-
-            //Create
-            _buffer = new Bitmap(ClientRectangle.Width, ClientRectangle.Height, PixelFormat.Format32bppPArgb);
-            _graphics = Graphics.FromImage(_buffer);
-
-            //Render
-            RenderFFT();
-
-            base.OnResize(e);
-        }
-
-        public static void ConfigureGraphics(Graphics graphics)
-        {
-            graphics.CompositingMode = CompositingMode.SourceOver;
-            graphics.CompositingQuality = CompositingQuality.HighSpeed;
-            graphics.SmoothingMode = SmoothingMode.None;
-            graphics.PixelOffsetMode = PixelOffsetMode.HighSpeed;
-            graphics.InterpolationMode = InterpolationMode.High;
+            
         }
     }
 }

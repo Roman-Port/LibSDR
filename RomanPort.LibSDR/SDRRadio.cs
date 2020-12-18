@@ -1,6 +1,6 @@
 ﻿using RomanPort.LibSDR.Framework;
+using RomanPort.LibSDR.Framework.Components.FFT.Processors;
 using RomanPort.LibSDR.Framework.Extras;
-using RomanPort.LibSDR.Framework.FFT;
 using RomanPort.LibSDR.Framework.Radio;
 using RomanPort.LibSDR.Framework.Util;
 using System;
@@ -20,7 +20,7 @@ namespace RomanPort.LibSDR
         public event SDRRadioClosedEventArgs OnRadioClosed;
 
         //Modules. These may be null and are created using the "EnableX" functions
-        public ComplexFftView fft;
+        public FFTProcessorComplex fft;
 
         //Misc
         private float demodBandwidth;
@@ -66,10 +66,10 @@ namespace RomanPort.LibSDR
             demodIqBufferPtr = (Complex*)demodIqBuffer;
         }
 
-        public ComplexFftView EnableFFT(int fftBinSize = 2048, int fftAveragingSize = 10)
+        public FFTProcessorComplex EnableFFT(int fftBinSize = 2048)
         {
             if(fft == null)
-                fft = new ComplexFftView(fftBinSize, fftAveragingSize);
+                fft = new FFTProcessorComplex(fftBinSize);
             return fft;
         }
 
@@ -190,7 +190,7 @@ namespace RomanPort.LibSDR
 
             //Process FFT
             if(fft != null)
-                fft.ProcessSamples(iqBufferPtr);
+                fft.AddSamples(iqBufferPtr, read);
 
             //Process demodulator (do this last)
             if (demodulator != null)

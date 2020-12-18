@@ -1,33 +1,29 @@
-﻿using System;
+﻿using RomanPort.LibSDR.Framework.Components.Filters;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace RomanPort.LibSDR.Framework.Resamplers.Decimators
 {
-    public unsafe class SdrFloatDecimator
+    public unsafe class SdrFloatDecimator : IDisposable
     {
         public SdrFloatDecimator(int decimation, int incomingChannels, int channelIndex)
         {
             this.decimation = decimation;
             this.incomingChannels = incomingChannels;
             this.channelIndex = channelIndex;
+            cic = new FloatCicFilter(decimation);
         }
 
         public readonly int decimation;
         public readonly int incomingChannels; //The number of channels in the stream. While this can only compute one channel, this allows us to skip others
         public readonly int channelIndex;
 
+        private FloatCicFilter cic;
+
         public int Process(float* inBuffer, int inCount, float* outBuffer, int outBufferLen)
         {
-            //Calculate amounts
-            int outputSamples = inCount / decimation;
-            int remaining = inCount % decimation;
-
-            //Copy
-            for (int i = 0; i < outputSamples; i++)
-                outBuffer[(i * incomingChannels) + channelIndex] = inBuffer[(i * decimation * incomingChannels) + channelIndex];
-
-            return outputSamples;
+            return cic.Process(inBuffer + channelIndex, inCount, incomingChannels);
         }
 
         public static int CalculateDecimationRate(float inputSampleRate, float desiredOutputSampleRate, out float actualOutputSampleRate)
@@ -43,6 +39,11 @@ namespace RomanPort.LibSDR.Framework.Resamplers.Decimators
             actualOutputSampleRate = inputSampleRate / decimationRate;
 
             return decimationRate;
+        }
+
+        public void Dispose()
+        {
+            
         }
     }
 }

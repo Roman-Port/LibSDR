@@ -111,7 +111,7 @@ namespace RomanPort.SDRTools.SpectrumVideoProducer
             source.Open(bufferSize);
 
             //Create FFT
-            fft = new ComplexFftView(fftBins, 10000, averaging);
+            fft = new ComplexFftView(fftBins, averaging);
 
             //Create buffer
             buffer = UnsafeBuffer.Create(bufferSize, sizeof(Complex));

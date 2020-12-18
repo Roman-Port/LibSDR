@@ -246,7 +246,9 @@ namespace RomanPort.LibSDR.Extras.RDS
             int endIndex = -1;
             for(int i = addressIndex; i < addressIndex + 4; i++)
             {
-                if(rtBuffer[i] == (char)0x0A)
+                //Official spec claims that the character 0x0A should be used to indicate the end, but some stations in my area don't do that.
+                //We also check \r for this reason. Cumulus Media stations are using \r instead.
+                if(rtBuffer[i] == (char)0x0A || rtBuffer[i] == '\r')
                 {
                     endIndex = i;
                     break;
@@ -259,6 +261,11 @@ namespace RomanPort.LibSDR.Extras.RDS
             //Handle ending if we did
             if(endIndex != -1)
             {
+                //Make sure this is really the end. We should have no null characters up to this point
+                for (int i = 0; i < endIndex; i++)
+                    if (rtBuffer[i] == (char)0x00)
+                        return;
+                
                 //Convert to string and update state
                 rtText = new string(rtBuffer, 0, endIndex);
                 rtComplete = true;
@@ -358,14 +365,24 @@ namespace RomanPort.LibSDR.Extras.RDS
             if ((frame.d & 0b0000000000100000) != 0)
                 localOffsetParts = -localOffsetParts;
 
-            //Create a UTC DateTime from the UTC portion
-            DateTime time = new DateTime(year, month, day, 0, 0, 0, 0, DateTimeKind.Local);
+            DateTime time;
+            TimeSpan localOffset;
+            DateTime localTime;
+            try
+            {
+                //Create a UTC DateTime from the UTC portion
+                time = new DateTime(year, month, day, 0, 0, 0, 0, DateTimeKind.Local);
 
-            //Convert the local hour and minute to a TimeSpan we'll save
-            TimeSpan localOffset = new TimeSpan(0, 30 * localOffsetParts, 0);
+                //Convert the local hour and minute to a TimeSpan we'll save
+                localOffset = new TimeSpan(0, 30 * localOffsetParts, 0);
 
-            //Convert to local time
-            DateTime localTime = time.AddMinutes((localHour * 60) + (localOffsetParts * 30) + localMinute);
+                //Convert to local time
+                localTime = time.AddMinutes((localHour * 60) + (localOffsetParts * 30) + localMinute);
+            } catch
+            {
+                //Ignore. If this was a corrupted RDS frame, this would've thrown an exception
+                return;
+            }
 
             //Set
             this.timeLast = localTime;
@@ -399,6 +416,59 @@ namespace RomanPort.LibSDR.Extras.RDS
             callLetters[3] = (char)(call4 + 65);
             callsign = new string(callLetters);
             return callLetters[0] == 'K' || callLetters[0] == 'W';
+        }
+
+        public static bool TryGetTrackInfo(string rt, out string trackTitle, out string trackArtist, out string stationName)
+        {
+            try
+            {
+                //Set outputs to null
+                trackTitle = null;
+                trackArtist = null;
+                stationName = null;
+
+                //Try to identify the type
+                bool cumulusMedia = rt.Contains(" - ") && rt.Contains(" On "); //Nothing Else Matters - METALLICA On KQRS
+                bool entercom = rt.StartsWith("Now playing ") && rt.Contains(" by ") && rt.Contains(" on "); //Now playing Hysteria by Def Leppard on JACK FM
+
+                //If we activated multiple, then abort
+                if (cumulusMedia && entercom)
+                    return false;
+
+                //Run
+                if (cumulusMedia)
+                {
+                    //Get segments
+                    int segArtist = rt.LastIndexOf(" - ");
+                    int segStation = rt.LastIndexOf(" On ");
+
+                    //Pull info
+                    trackTitle = rt.Substring(0, segArtist);
+                    trackArtist = rt.Substring(segArtist + 3, segStation - (segArtist + 3));
+                    stationName = rt.Substring(segStation + 4);
+                    return true;
+                }
+                if (entercom)
+                {
+                    //Get segments
+                    int segTitle = "Now playing ".Length;
+                    int segArtist = rt.LastIndexOf(" by ");
+                    int segStation = rt.LastIndexOf(" on ");
+
+                    //Pull info
+                    trackTitle = rt.Substring(segTitle, segArtist - segTitle);
+                    trackArtist = rt.Substring(segArtist + 4, segStation - (segArtist + 4));
+                    stationName = rt.Substring(segStation + 4);
+                    return true;
+                }
+            }
+            catch
+            {
+                trackTitle = null;
+                trackArtist = null;
+                stationName = null;
+            }
+            return false;
         }
 
         internal void SubscribeFmDemodulator(WbFmDemodulator demod)

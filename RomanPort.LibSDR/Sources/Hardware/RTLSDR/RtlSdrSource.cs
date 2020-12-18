@@ -50,6 +50,8 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
         private uint centerFreq;
         private int gainLevel;
 
+        public override event HardwareSourceSamplesDroppedArgs OnSamplesDropped;
+
         public override long CenterFrequency {
             get => centerFreq;
             set {
@@ -124,7 +126,7 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
 
             //Open device
             SetSampleRate(sampleRate);
-            CenterFrequency = 97100000;
+            CenterFrequency = 93700000;
             SetManualGain(5);
 
             //Clear buffer to prepare for reading
@@ -225,8 +227,8 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
 
             //Deal with dropped samples
             instance.droppedSamples += dropped;
-            if(dropped != 0)
-                Console.WriteLine($"[RtlSdrSource] Can't keep up! Dropped {dropped} samples just now, {instance.droppedSamples} total.");
+            if (dropped != 0)
+                instance.OnSamplesDropped?.Invoke(dropped);
 
             //Send events
             //instance.waitHandle.Set();
