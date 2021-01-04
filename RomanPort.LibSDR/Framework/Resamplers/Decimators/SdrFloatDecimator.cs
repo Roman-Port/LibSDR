@@ -30,10 +30,10 @@ namespace RomanPort.LibSDR.Framework.Resamplers.Decimators
         {
             //Calculate the rate by finding the LOWEST we can go without it becoming a rate lower than the desired rate
             int decimationRate = 1;
-            do
+            while (inputSampleRate / (decimationRate + 1) >= desiredOutputSampleRate)
             {
                 decimationRate++;
-            } while (inputSampleRate / (decimationRate + 1) >= desiredOutputSampleRate);
+            }
 
             //Determine the actual output sample rate
             actualOutputSampleRate = inputSampleRate / decimationRate;

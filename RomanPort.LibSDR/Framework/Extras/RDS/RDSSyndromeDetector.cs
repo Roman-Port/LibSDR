@@ -19,7 +19,6 @@ namespace RomanPort.LibSDR.Framework.Extras.RDS
         private const int MaxCorrectableBits = 5;
         private const int CheckwordBitsCount = 10;
 
-        private IRDSFrameReceiver evt;
         private readonly bool _useFec = true; //Turning this off disables error correction, but also stops potential corrupted packets
         private readonly UInt16[] _blocks = new UInt16[4];
         private BlockSequence _sequence = BlockSequence.WaitBitSync;
@@ -27,9 +26,10 @@ namespace RomanPort.LibSDR.Framework.Extras.RDS
         private UInt32 _raw;
         private int _count;
 
-        public RDSSyndromeDetector(IRDSFrameReceiver evt)
+        public event RDSFrameReceivedEventArgs OnRDSFrameReceived;
+
+        public RDSSyndromeDetector()
         {
-            this.evt = evt;
         }
 
         public void Clock(bool b)
@@ -53,7 +53,7 @@ namespace RomanPort.LibSDR.Framework.Extras.RDS
                 ProcessSyndrome();
                 if (_sequence == BlockSequence.GotD)
                 {
-                    evt.OnRDSFrameReceived(_blocks[0], _blocks[1], _blocks[2], _blocks[3]);
+                    OnRDSFrameReceived?.Invoke(_blocks[0], _blocks[1], _blocks[2], _blocks[3]);
                     _sequence = BlockSequence.GotBitSync;
                 }
 

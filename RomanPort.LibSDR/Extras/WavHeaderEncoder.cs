@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RomanPort.LibSDR.Framework.Util;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -49,6 +50,22 @@ namespace RomanPort.LibSDR.Extras
             WriteTag("data");
             dataSizeOffs = 40;
             WriteSignedInt(audioLength);
+        }
+
+        public unsafe void WriteRawData(byte* ptr, int size)
+        {
+            byte[] buffer = new byte[32];
+            while(size > 0)
+            {
+                int readable = Math.Min(size, buffer.Length);
+                fixed (byte* bufferPtr = buffer)
+                    Utils.Memcpy(bufferPtr, ptr, readable);
+                size -= readable;
+                ptr += readable;
+                audioLength += readable;
+                underlyingStream.Write(buffer, 0, readable);
+            }
+            UpdateLength();
         }
 
         public void UpdateLength()

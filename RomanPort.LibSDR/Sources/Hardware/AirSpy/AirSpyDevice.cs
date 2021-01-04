@@ -1,4 +1,5 @@
 ﻿using RomanPort.LibSDR.Framework;
+using RomanPort.LibSDR.Sources.Hardware.AirSpy.Internal;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -12,7 +13,7 @@ namespace RomanPort.LibSDR.Sources.Hardware.AirSpy
         {
             airspy_error error = NativeMethods.airspy_open_sn(out IntPtr device, serial);
             if (error != airspy_error.AIRSPY_SUCCESS)
-                throw new AirSpyException(error, "Got error while opening AirSpy device.");
+                throw new HardwareNotFoundException();
             return new AirSpyDevice(device);
         }
 
@@ -20,7 +21,7 @@ namespace RomanPort.LibSDR.Sources.Hardware.AirSpy
         {
             airspy_error error = NativeMethods.airspy_open(out IntPtr device);
             if (error != airspy_error.AIRSPY_SUCCESS)
-                throw new AirSpyException(error, "Got error while opening AirSpy device.");
+                throw new HardwareNotFoundException();
             return new AirSpyDevice(device);
         }
 

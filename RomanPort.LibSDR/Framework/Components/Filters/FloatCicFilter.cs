@@ -5,7 +5,7 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Framework.Components.Filters
 {
-    public unsafe class FloatCicFilter
+    public unsafe class FloatCicFilter : IDisposable
     {
         private int R;
         private int N;
@@ -35,6 +35,14 @@ namespace RomanPort.LibSDR.Framework.Components.Filters
             bufferOffsetCombPtr = (int*)bufferOffsetComb;
             bufferLeftover = UnsafeBuffer.Create(R, sizeof(float));
             bufferLeftoverPtr = (float*)bufferLeftover;
+        }
+
+        public void Dispose()
+        {
+            bufferIntegrator.Dispose();
+            bufferComb.Dispose();
+            bufferOffsetComb.Dispose();
+            bufferLeftover.Dispose();
         }
 
         /// <summary>

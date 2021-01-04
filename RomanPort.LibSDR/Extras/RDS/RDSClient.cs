@@ -1,4 +1,5 @@
 ﻿using RomanPort.LibSDR.Demodulators;
+using RomanPort.LibSDR.Framework.Extras.RDS;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -471,13 +472,12 @@ namespace RomanPort.LibSDR.Extras.RDS
             return false;
         }
 
-        internal void SubscribeFmDemodulator(WbFmDemodulator demod)
+        internal void SubscribeToRdsDemodulator(RdsDemodulator demod)
         {
-            demod.UseRdsDemodulator();
-            demod.OnRdsFrame += Demod_OnRdsFrame;
+            demod.OnRDSFrameReceived += Demod_OnRDSFrameReceived;
         }
 
-        private void Demod_OnRdsFrame(ushort frameA, ushort frameB, ushort frameC, ushort frameD, WbFmDemodulator demodulator)
+        private void Demod_OnRDSFrameReceived(ushort frameA, ushort frameB, ushort frameC, ushort frameD)
         {
             ProcessFrameBigEndian(frameA, frameB, frameC, frameD);
         }

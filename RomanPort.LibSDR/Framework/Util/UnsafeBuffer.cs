@@ -81,5 +81,38 @@ namespace RomanPort.LibSDR.Framework.Util
         {
             return new UnsafeBuffer(buffer, buffer.Length, false);
         }
+
+        //Allows for a oneliner for creating UnsafeBuffers
+        public static UnsafeBuffer Create<T>(int length, int sizeOfElement, out T* ptr) where T : unmanaged
+        {
+            UnsafeBuffer buf = UnsafeBuffer.Create(length, sizeOfElement);
+            ptr = (T*)buf;
+            return buf;
+        }
+
+        public static UnsafeBuffer Create<T>(int length, out T* ptr) where T : unmanaged
+        {
+            UnsafeBuffer buf = UnsafeBuffer.Create(length, sizeof(T));
+            ptr = (T*)buf;
+            return buf;
+        }
+
+        public static UnsafeBuffer Create2D<T>(int height, int width, int sizeOfElement, out T*[] ptr) where T : unmanaged
+        {
+            UnsafeBuffer buf = UnsafeBuffer.Create(width * height, sizeOfElement);
+            ptr = new T*[height];
+            for (int i = 0; i < height; i++)
+                ptr[i] = ((T*)buf) + (width * i);
+            return buf;
+        }
+
+        public static UnsafeBuffer Create2D<T>(int height, int width, out T*[] ptr) where T : unmanaged
+        {
+            UnsafeBuffer buf = UnsafeBuffer.Create(width * height, sizeof(T));
+            ptr = new T*[height];
+            for (int i = 0; i < height; i++)
+                ptr[i] = ((T*)buf) + (width * i);
+            return buf;
+        }
     }
 }

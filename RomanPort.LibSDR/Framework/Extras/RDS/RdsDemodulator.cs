@@ -5,9 +5,10 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Framework.Extras.RDS
 {
+    public delegate void RDSFrameReceivedEventArgs(ushort a, ushort b, ushort c, ushort d);
+
     public unsafe class RdsDemodulator : IDisposable
     {
-        private IRDSFrameReceiver handler;
         private RDSSyndromeDetector detector;
 
         private UnsafeBuffer _rawBuffer;
@@ -43,10 +44,12 @@ namespace RomanPort.LibSDR.Framework.Extras.RDS
         private const float PllLockThreshold = 3.2f;
         private const float RdsBitRate = 1187.5f;
 
-        public RdsDemodulator(IRDSFrameReceiver handler)
+        public event RDSFrameReceivedEventArgs OnRDSFrameReceived;
+
+        public RdsDemodulator()
         {
-            this.handler = handler;
-            this.detector = new RDSSyndromeDetector(handler);
+            this.detector = new RDSSyndromeDetector();
+            detector.OnRDSFrameReceived += Detector_OnRDSFrameReceived;
             
             _pllBuffer = UnsafeBuffer.Create(sizeof(Pll));
             _pll = (Pll*)_pllBuffer;
@@ -56,6 +59,11 @@ namespace RomanPort.LibSDR.Framework.Extras.RDS
 
             _syncFilterBuffer = UnsafeBuffer.Create(sizeof(IirFilter));
             _syncFilter = (IirFilter*)_syncFilterBuffer;
+        }
+
+        private void Detector_OnRDSFrameReceived(ushort a, ushort b, ushort c, ushort d)
+        {
+            OnRDSFrameReceived?.Invoke(a, b, c, d);
         }
 
         public void Dispose()

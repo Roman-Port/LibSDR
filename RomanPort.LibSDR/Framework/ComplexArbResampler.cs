@@ -11,12 +11,8 @@ namespace RomanPort.LibSDR.Framework
         private float outputSampleRate;
         private int bufferSize;
 
-        private IQFirFilter filter;
-        private FloatMultichannelArbResampler resampler;
-
-        private UnsafeBuffer tempBuffer;
-        private Complex* tempBufferComplexPtr;
-        private float* tempBufferFloatPtr;
+        private FloatArbResampler resamplerA;
+        private FloatArbResampler resamplerB;
 
         public ComplexArbResampler(float inputSampleRate, float outputSampleRate, int bufferSize)
         {
@@ -25,35 +21,24 @@ namespace RomanPort.LibSDR.Framework
             this.bufferSize = bufferSize;
 
             //Create resampler
-            resampler = new FloatMultichannelArbResampler(inputSampleRate, outputSampleRate, 2);
-
-            //Create filter
-            var coefficients = FilterBuilder.MakeBandPassKernel(inputSampleRate, 250, 0, (int)(outputSampleRate / 2), WindowType.BlackmanHarris4);
-            filter = new IQFirFilter(coefficients);
-
-            //Create buffer
-            tempBuffer = UnsafeBuffer.Create(bufferSize, sizeof(Complex));
-            tempBufferComplexPtr = (Complex*)tempBuffer;
-            tempBufferFloatPtr = (float*)tempBuffer;
+            resamplerA = new FloatArbResampler(inputSampleRate, outputSampleRate, 2, 0);
+            resamplerB = new FloatArbResampler(inputSampleRate, outputSampleRate, 2, 1);
         }
 
         public void Dispose()
         {
-            tempBuffer.Dispose();
-            filter.Dispose();
+
         }
 
         public int Process(Complex* input, Complex* output, int count)
         {
-            //Copy to temp buffer
-            /*for (int i = 0; i < count; i++)
-                tempBufferComplexPtr[i] = input[i];
+            return Process(input, output, count, out int consumedSamples);
+        }
 
-            //Filter
-            filter.Process(tempBufferComplexPtr, count);*/
-
-            //Resample
-            int resampleCount = resampler.Process((float*)input, count * 2, (float*)output, count * 2, false) / 2;
+        public int Process(Complex* input, Complex* output, int count, out int consumedSamples)
+        {
+            resamplerA.Process((float*)input, count, (float*)output, bufferSize, false, out consumedSamples, out int resampleCount);
+            resamplerB.Process((float*)input, count, (float*)output, bufferSize, false);
 
             return resampleCount;
         }

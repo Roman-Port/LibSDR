@@ -38,39 +38,53 @@ namespace RomanPort.LibSDR.Framework.Components.FFT
 
         public override unsafe void GetFFTSnapshot(float* ptr)
         {
-            if(Width < fft.FftBins)
+            ScaleFFTSnapshot(fft.FftBins, spectrumBufferPtr, ptr, Width);
+        }
+
+        private const float OFFSET = 10000;
+
+        public static unsafe void ScaleFFTSnapshot(int fftBins, float* snapshot, float* outputPtr, int width)
+        {
+            if (width < fftBins)
             {
                 //More bins than pixels
-                float factor = (float)Width / (float)fft.FftBins;
+                float factor = (float)width / (float)fftBins;
                 float colTotal = 0;
                 int colCount = 0;
                 int colIndex = 0;
-                for(int i = 0; i<fft.FftBins; i++)
+                for (int i = 0; i < fftBins; i++)
                 {
                     //Get pixel index
                     int pixel = (int)(factor * i);
 
                     //Check if changed
-                    if(pixel != colIndex)
+                    if (pixel != colIndex)
                     {
                         //Write and reset
-                        ptr[colIndex] = colTotal / colCount;
+                        outputPtr[colIndex] = colTotal - OFFSET;
                         colTotal = 0;
                         colCount = 0;
                         colIndex = pixel;
                     }
 
                     //Add
-                    colTotal += spectrumBufferPtr[i];
+                    colTotal = Math.Max(snapshot[i] + OFFSET, colTotal);
                     colCount++;
                 }
-            } else
+
+                //Set last
+                if (width >= 2)
+                {
+                    outputPtr[width - 1] = outputPtr[width - 2];
+                }
+            }
+            else
             {
                 //More pixels than bins
-                float factor = (float)fft.FftBins / (float)Width;
-                for (int i = 0; i<Width; i++)
+                float factor = (float)fftBins / (float)width;
+                for (int i = 0; i < width; i++)
                 {
-                    ptr[i] = spectrumBufferPtr[(int)(i * factor)];
+                    outputPtr[i] = snapshot[(int)(i * factor)];
                 }
             }
         }

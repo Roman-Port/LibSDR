@@ -1,6 +1,6 @@
 ﻿using RomanPort.LibSDR.Framework;
-using RomanPort.LibSDR.Framework.Exceptions;
 using RomanPort.LibSDR.Framework.Util;
+using RomanPort.LibSDR.Sources.Hardware.RTLSDR.Internal;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -9,99 +9,163 @@ using System.Threading;
 
 namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
 {
-    public unsafe class RtlSdrSource : IHardwareSource
+    public unsafe class RtlSdrSource : IHardwareSource, ISource
     {
-        public readonly uint deviceIndex;
-        public readonly uint sampleRate;
-        public readonly int internalBufferMultiplier;
+        private readonly uint deviceIndex;
 
-        public IntPtr device;
-        public int[] supportedGains;
-        public string deviceName;
+        //Misc
+        private IntPtr device;
         private GCHandle gcHandle;
         private Thread workerThread;
-        private EventWaitHandle waitHandle;
-
-        public int droppedSamples;
-
-        private int incomingBufferLength;
-
-        //Buffer for incoming data
-        private UnsafeBuffer incomingBuffer;
-        private byte* incomingBufferPtr;
+        private int bufferLength;
 
         //Buffer for converting outgoing data
-        private UnsafeBuffer outgoingBuffer;
-        private byte* outgoingBufferPtr;
-
-        //Circular buffer for threading
-        private CircularBuffer<byte> buffer;
+        private UnsafeBuffer buffer;
+        private Complex* bufferPtr;
 
         //DC removers
         private DcRemover dcRemoverI;
         private DcRemover dcRemoverQ;
 
-        //Buffer for converting from the byte input from the RTL-SDR to a float input the rest of this program uses
-        private static readonly UnsafeBuffer _lutBuffer = UnsafeBuffer.Create(256, sizeof(float));
-        private static readonly float* _lutPtr;
-
-        private const int RTL_SUCCESS_OPCODE = 0;
-
+        //Internal stuff, don't touch
+        private bool isStreaming;
+        private uint sampleRate;
         private uint centerFreq;
         private int gainLevel;
+        private bool gainAuto;
 
-        public override event HardwareSourceSamplesDroppedArgs OnSamplesDropped;
+        private const int RTL_SUCCESS_OPCODE = 0;
+        public static readonly uint[] SUPPORTED_SAMPLE_RATES = new uint[]
+        {
+            3200000,
+            2800000,
+            2400000,
+            2048000,
+            1920000,
+            1800000,
+            1400000,
+            1024000,
+            900001,
+            250000
+        };
 
-        public override long CenterFrequency {
+        public event HardwareSourceSamplesDroppedArgs OnSamplesDropped;
+        public event SamplesAvailableEventArgs OnSamplesAvailable;
+        public event SampleRateChangedEventArgs OnSampleRateChanged;
+
+        public long CenterFrequency {
             get => centerFreq;
             set {
-                SetCenterFreq((uint)value);
+                //Set on device
+                int opcode = NativeMethods.rtlsdr_set_center_freq(device, (uint)value);
+                if (opcode != RTL_SUCCESS_OPCODE)
+                    throw new RtlDeviceErrorException(opcode);
+
+                //Set locally
                 centerFreq = (uint)value;
             }
         }
-        public override bool AutoGainEnabled {
-            get => gainLevel == -1;
+
+        public bool AutoGainEnabled {
+            get => gainAuto;
             set {
-                gainLevel = -1;
-                SetAutomaticGain();
+                //Set on device
+                int opcode = NativeMethods.rtlsdr_set_tuner_gain_mode(device, value ? 0 : 1);
+                if (opcode != RTL_SUCCESS_OPCODE)
+                    throw new RtlDeviceErrorException(opcode);
+
+                //Set locally
+                gainAuto = value;
             }
         }
-        public override int ManualGainLevel {
+
+        public int ManualGainLevel {
             get => gainLevel;
             set
             {
+                //Change gain mode
+                AutoGainEnabled = false;
+
+                //Set on device
+                int opcode = NativeMethods.rtlsdr_set_tuner_gain(device, value);
+                if (opcode != RTL_SUCCESS_OPCODE)
+                    throw new RtlDeviceErrorException(opcode);
+
+                //Set locally
                 gainLevel = value;
-                SetManualGain(gainLevel);
             }
         }
 
-        public RtlSdrSource(uint deviceIndex, uint sampleRate, int internalBufferMultiplier = 2)
+        public float SampleRate
+        {
+            get => sampleRate;
+            set
+            {
+                //Set on device
+                int opcode = NativeMethods.rtlsdr_set_sample_rate(device, (uint)value);
+                if (opcode != RTL_SUCCESS_OPCODE)
+                    throw new RtlDeviceErrorException(opcode);
+
+                //Set locally
+                sampleRate = (uint)value;
+
+                //Send events
+                OnSampleRateChanged?.Invoke(value);
+            }
+        }
+
+        public int[] TunerGains {
+            get
+            {
+                //Check
+                if (device == null)
+                    throw new Exception("Device not yet opened.");
+
+                //Fetch
+                int supportedGainsCount = NativeMethods.rtlsdr_get_tuner_gains(device, null);
+                int[] supportedGains = new int[supportedGainsCount];
+                NativeMethods.rtlsdr_get_tuner_gains(device, supportedGains);
+                return supportedGains;
+            }
+        }
+
+        public string TunerName
+        {
+            get
+            {
+                return NativeMethods.rtlsdr_get_device_name(deviceIndex);
+            }
+        }
+
+        public uint DeviceIndex { get => deviceIndex; }
+
+        public long TotalDroppedSamples => 0;
+
+        public RtlSdrSource(uint deviceIndex, uint sampleRate)
         {
             this.deviceIndex = deviceIndex;
             this.sampleRate = sampleRate;
-            this.internalBufferMultiplier = internalBufferMultiplier;
         }
 
-        static RtlSdrSource()
+        public static string[] GetConnectedDevices()
         {
-            _lutPtr = (float*)_lutBuffer;
+            //Get count
+            uint count = NativeMethods.rtlsdr_get_device_count();
 
-            const float scale = 1.0f / 127.0f;
-            for (var i = 0; i < 256; i++)
-            {
-                _lutPtr[i] = (i - 128) * scale;
-            }
+            //Get names
+            string[] devices = new string[count];
+            for (uint i = 0; i < count; i++)
+                devices[i] = NativeMethods.rtlsdr_get_device_name(i);
+
+            return devices;
         }
 
-        public override float Open(int bufferLength)
+        public void Open(int bufferSize)
         {
             //Create buffers
-            incomingBufferLength = bufferLength;
-            incomingBuffer = UnsafeBuffer.Create(bufferLength * 2, sizeof(byte));
-            incomingBufferPtr = (byte*)incomingBuffer;
-            outgoingBuffer = UnsafeBuffer.Create(bufferLength * 2, sizeof(byte));
-            outgoingBufferPtr = (byte*)outgoingBuffer;
-            buffer = new CircularBuffer<byte>(bufferLength * 4 * internalBufferMultiplier);
+            bufferLength = bufferSize;
+            buffer = UnsafeBuffer.Create(bufferLength, sizeof(Complex));
+            bufferPtr = (Complex*)buffer;
 
             //Create DC removers
             dcRemoverI = new DcRemover();
@@ -111,103 +175,77 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
 
             //Open
             if (NativeMethods.rtlsdr_open(out device, deviceIndex) != RTL_SUCCESS_OPCODE)
-                throw new RadioNotFoundException();
-
-            //Load device gains
-            int supportedGainsCount = NativeMethods.rtlsdr_get_tuner_gains(device, null);
-            supportedGains = new int[supportedGainsCount];
-            NativeMethods.rtlsdr_get_tuner_gains(device, supportedGains);
-
-            //Load device name
-            deviceName = NativeMethods.rtlsdr_get_device_name(deviceIndex);
+                throw new HardwareNotFoundException();
 
             //Create handle
             gcHandle = GCHandle.Alloc(this);
 
-            //Open device
-            SetSampleRate(sampleRate);
-            CenterFrequency = 93700000;
-            SetManualGain(5);
+            //Initialize the device
+            SampleRate = sampleRate;
+            AutoGainEnabled = false;
+            ManualGainLevel = 0;
+        }
 
+        public void BeginStreaming()
+        {
+            //Check flag
+            if (isStreaming)
+                return;
+            
             //Clear buffer to prepare for reading
             ResetDeviceBuffer();
 
             //Open device for streaming
-            waitHandle = new EventWaitHandle(false, EventResetMode.AutoReset);
-            workerThread = new Thread(RunStreamWorker);
+            workerThread = new Thread(() =>
+            {
+                NativeMethods.rtlsdr_read_async(device, RtlSdrSamplesAvailable, (IntPtr)gcHandle, 0, (uint)(bufferLength * 2));
+                isStreaming = false;
+            });
             workerThread.IsBackground = true;
+            workerThread.Name = "RTL-SDR Streaming Thread";
             workerThread.Start();
 
-            return sampleRate;
+            //Update state
+            isStreaming = true;
         }
 
-        public void SetSampleRate(uint sampleRate)
+        public void EndStreaming()
         {
-            int opcode = NativeMethods.rtlsdr_set_sample_rate(device, sampleRate);
-            if (opcode != RTL_SUCCESS_OPCODE)
-                throw new RtlDeviceErrorException(opcode);
-        }
+            //Check flag
+            if (!isStreaming)
+                return;
 
-        public void SetCenterFreq(uint centerFreq)
-        {
-            int opcode = NativeMethods.rtlsdr_set_center_freq(device, centerFreq);
-            if (opcode != RTL_SUCCESS_OPCODE)
-                throw new RtlDeviceErrorException(opcode);
-        }
-
-        public void SetManualGain(int gain)
-        {
-            //Change mode
-            int opcode = NativeMethods.rtlsdr_set_tuner_gain_mode(device, 1);
+            //Stop device
+            int opcode = NativeMethods.rtlsdr_cancel_async(device);
             if (opcode != RTL_SUCCESS_OPCODE)
                 throw new RtlDeviceErrorException(opcode);
 
-            //Change gain
-            opcode = NativeMethods.rtlsdr_set_tuner_gain(device, gain);
+            //Update state
+            isStreaming = false;
+        }
+
+        public void Close()
+        {
+            //Stop streaming if we are
+            EndStreaming();
+
+            //Close device
+            int opcode = NativeMethods.rtlsdr_close(device);
             if (opcode != RTL_SUCCESS_OPCODE)
                 throw new RtlDeviceErrorException(opcode);
+
+            //Dispose of buffers
+            buffer.Dispose();
+
+            //Dispose of GC handle
+            gcHandle.Free();
         }
 
-        public void SetAutomaticGain()
-        {
-            //Change mode
-            if (NativeMethods.rtlsdr_set_tuner_gain_mode(device, 0) != RTL_SUCCESS_OPCODE)
-                throw new Exception("Failed to access RTL device.");
-        }
-
-        public void ResetDeviceBuffer()
+        private void ResetDeviceBuffer()
         {
             //Reset device buffer
             if (NativeMethods.rtlsdr_reset_buffer(device) != RTL_SUCCESS_OPCODE)
                 throw new Exception("Failed to access RTL device.");
-        }
-
-        public override unsafe int Read(Complex* iq, int bufferLength)
-        {
-            //Wait
-            while (buffer.GetAvailable() < bufferLength)
-                Thread.Sleep(1);
-
-            //Read from buffer
-            int samplesRead = buffer.Read(outgoingBufferPtr, bufferLength * 2) / 2;
-
-            //Convert
-            for (var i = 0; i < samplesRead; i++)
-            {
-                iq[i].Imag = _lutPtr[outgoingBufferPtr[(i * 2) + 0]];
-                iq[i].Real = _lutPtr[outgoingBufferPtr[(i * 2) + 1]];
-            }
-
-            //Clean up
-            dcRemoverI.ProcessInterleaved((float*)iq, samplesRead);
-            dcRemoverQ.ProcessInterleaved(((float*)iq) + 1, samplesRead);
-
-            return samplesRead;
-        }
-
-        private void RunStreamWorker()
-        {
-            NativeMethods.rtlsdr_read_async(device, RtlSdrSamplesAvailable, (IntPtr)gcHandle, 0, (uint)(incomingBufferLength * 2));
         }
 
         private static void RtlSdrSamplesAvailable(byte* buf, uint len, IntPtr ctx)
@@ -222,28 +260,33 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
             //Get instance
             var instance = (RtlSdrSource)gcHandle.Target;
 
-            //Write samples to buffer
-            int dropped = (int)len - instance.buffer.Write(buf, (int)len);
-
-            //Deal with dropped samples
-            instance.droppedSamples += dropped;
-            if (dropped != 0)
-                instance.OnSamplesDropped?.Invoke(dropped);
-
-            //Send events
-            //instance.waitHandle.Set();
+            //Write samples to instance
+            instance.SamplesMadeAvailable(buf, len);
         }
 
-        public override void Close()
+        private void SamplesMadeAvailable(byte* buf, uint len)
         {
-            //Close device
-            //device.Dispose();
-            //device = null;
-        }
+            //Convert
+            int samplesRead = (int)(len / 2);
+            for (var i = 0; i < samplesRead; i++)
+            {
+                bufferPtr[i].Imag = ConversionLookupTable.LOOKUP_INT8[buf[(i * 2) + 0]];
+                bufferPtr[i].Real = ConversionLookupTable.LOOKUP_INT8[buf[(i * 2) + 1]];
+            }
 
-        public override void Dispose()
-        {
-            //circularBuffer.Dispose();
+            //Clean up
+            dcRemoverI.ProcessInterleaved((float*)bufferPtr, samplesRead);
+            dcRemoverQ.ProcessInterleaved(((float*)bufferPtr) + 1, samplesRead);
+
+            //Send events, but limit the amount sent to the buffer size
+            int offset = 0;
+            while (samplesRead > 0)
+            {
+                int writable = Math.Min(bufferLength, samplesRead);
+                OnSamplesAvailable?.Invoke(bufferPtr + offset, writable);
+                samplesRead -= writable;
+                offset += writable;
+            }
         }
     }
 }

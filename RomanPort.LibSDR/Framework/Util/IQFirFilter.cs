@@ -22,6 +22,12 @@ namespace RomanPort.LibSDR.Framework.Util
             //worker = new ThreadedWorker();
         }
 
+        public void SetProcessEveryN(int n)
+        {
+            _rFilter.processEveryN = n;
+            _iFilter.processEveryN = n;
+        }
+
         ~IQFirFilter()
         {
             Dispose();

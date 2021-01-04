@@ -5,12 +5,14 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Sources.Hardware
 {
-    public abstract class IHardwareSource : IIQSource
+    public interface IHardwareSource
     {
-        public abstract long CenterFrequency { get; set; }
-        public abstract bool AutoGainEnabled { get; set; }
-        public abstract int ManualGainLevel { get; set; }
-        public abstract event HardwareSourceSamplesDroppedArgs OnSamplesDropped;
+        long CenterFrequency { get; set; }
+        bool AutoGainEnabled { get; set; }
+        int ManualGainLevel { get; set; }
+        long TotalDroppedSamples { get; }
+        float SampleRate { get; set; }
+        event HardwareSourceSamplesDroppedArgs OnSamplesDropped;
     }
 
     public delegate void HardwareSourceSamplesDroppedArgs(long dropped);

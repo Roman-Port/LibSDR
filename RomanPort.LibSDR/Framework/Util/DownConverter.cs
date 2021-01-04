@@ -4,7 +4,7 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Framework.Util
 {
-    public unsafe sealed class DownConverter
+    public unsafe sealed class DownConverter : IDisposable
     {
         private readonly int _phaseCount;
         private readonly UnsafeBuffer _oscillatorsBuffer;
@@ -88,6 +88,11 @@ namespace RomanPort.LibSDR.Framework.Util
                 _oscillators[i].Mix(buffer, length, i, _phaseCount);
             }
             _oscillators[0].Mix(buffer, length, 0, _phaseCount);
+        }
+
+        public void Dispose()
+        {
+            _oscillatorsBuffer.Dispose();
         }
     }
 }

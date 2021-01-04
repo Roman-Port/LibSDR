@@ -178,6 +178,10 @@ namespace RomanPort.LibSDR.Framework.Util
             }
         }
 
+        //added by RomanPort - skips every N sample to save CPU power if the sample is just going to be thrown away
+        public int processEveryN = 0;
+        private int processEveryNPos = 0;
+
         private void ProcessSymmetricKernelInterleaved(float* buffer, int length)
         {
             length <<= 1;
@@ -190,34 +194,49 @@ namespace RomanPort.LibSDR.Framework.Util
                     queue[k] = buffer[l];
                 }
 
-                var acc = 0.0f;
 
-                var halfLen = _queueSize / 2;
-                var len = halfLen;
-
-                var ptr1 = _coeffPtr;
-                var ptr2 = queue;
-                var ptr3 = queue + _queueSize - 1;
-
-                if (len >= 4)
+                if(processEveryNPos != 0)
                 {
-                    do
+                    //Process output
+                    var acc = 0.0f;
+
+                    var halfLen = _queueSize / 2;
+                    var len = halfLen;
+
+                    var ptr1 = _coeffPtr;
+                    var ptr2 = queue;
+                    var ptr3 = queue + _queueSize - 1;
+
+                    if (len >= 4)
                     {
-                        acc += ptr1[0] * (ptr2[0] + ptr3[0])
-                             + ptr1[1] * (ptr2[1] + ptr3[-1])
-                             + ptr1[2] * (ptr2[2] + ptr3[-2])
-                             + ptr1[3] * (ptr2[3] + ptr3[-3]);
+                        do
+                        {
+                            acc += ptr1[0] * (ptr2[0] + ptr3[0])
+                                 + ptr1[1] * (ptr2[1] + ptr3[-1])
+                                 + ptr1[2] * (ptr2[2] + ptr3[-2])
+                                 + ptr1[3] * (ptr2[3] + ptr3[-3]);
 
-                        ptr1 += 4;
-                        ptr2 += 4;
-                        ptr3 -= 4;
-                    } while ((len -= 4) >= 4);
-                }
-                while (len-- > 0)
+                            ptr1 += 4;
+                            ptr2 += 4;
+                            ptr3 -= 4;
+                        } while ((len -= 4) >= 4);
+                    }
+                    while (len-- > 0)
+                    {
+                        acc += *ptr1++ * (*ptr2++ + *ptr3--);
+                    }
+                    acc += queue[halfLen] * _coeffPtr[halfLen];
+
+                    //Set
+                    buffer[m] = acc;
+
+                    //Reset counter
+                    processEveryNPos = processEveryN;
+                } else
                 {
-                    acc += *ptr1++ * (*ptr2++ + *ptr3--);
+                    buffer[m] = 0;
+                    processEveryNPos--;
                 }
-                acc += queue[halfLen] * _coeffPtr[halfLen];
 
                 if ((_offset -= _decimationFactor) < 0)
                 {
@@ -225,8 +244,6 @@ namespace RomanPort.LibSDR.Framework.Util
                     _offset += _queueSize * (CircularBufferSize - 1);
                     Utils.Memcpy(_queuePtr + _offset + _decimationFactor, _queuePtr + oldOffset, (_queueSize - _decimationFactor) * sizeof(float));
                 }
-
-                buffer[m] = acc;
             }
         }
 

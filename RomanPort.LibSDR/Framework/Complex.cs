@@ -105,6 +105,11 @@ namespace RomanPort.LibSDR.Framework
             return new Complex(a.Real - b.Real, a.Imag - b.Imag);
         }
 
+        public static Complex operator -(Complex value)
+        {
+            return (new Complex((-value.Real), (-value.Imag)));
+        }
+
         public static Complex operator *(Complex a, Complex b)
         {
             return new Complex(a.Real * b.Real - a.Imag * b.Imag,

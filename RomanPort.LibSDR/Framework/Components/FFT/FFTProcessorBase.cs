@@ -22,7 +22,7 @@ namespace RomanPort.LibSDR.Framework.Components.FFT
             fftBuffer?.Dispose();
             fftWindowBuffer?.Dispose();
             fftSpectrumBuffer?.Dispose();
-            fftSpectrumAvgBuffer?.Dispose();
+            fftSpectrumWaitingBuffer?.Dispose();
             fftSpectrumFinalBuffer?.Dispose();
         }
 
@@ -34,8 +34,8 @@ namespace RomanPort.LibSDR.Framework.Components.FFT
             fftWindowBufferPtr = (float*)fftWindowBuffer;
             fftSpectrumBuffer = UnsafeBuffer.Create(FftBufferSize, sizeof(float));
             fftSpectrumBufferPtr = (float*)fftSpectrumBuffer;
-            fftSpectrumAvgBuffer = UnsafeBuffer.Create(FftBufferSize, sizeof(float));
-            fftSpectrumAvgBufferPtr = (float*)fftSpectrumAvgBuffer;
+            fftSpectrumWaitingBuffer = UnsafeBuffer.Create(FftBufferSize, sizeof(T));
+            fftSpectrumWaitingPtr = (T*)fftSpectrumWaitingBuffer;
             fftSpectrumFinalBuffer = UnsafeBuffer.Create(FftBufferSize, sizeof(float));
             fftSpectrumFinalBufferPtr = (float*)fftSpectrumFinalBuffer;
         }
@@ -47,13 +47,14 @@ namespace RomanPort.LibSDR.Framework.Components.FFT
         protected float* fftWindowBufferPtr;
         protected UnsafeBuffer fftSpectrumBuffer;
         protected float* fftSpectrumBufferPtr;
-        protected UnsafeBuffer fftSpectrumAvgBuffer;
-        protected float* fftSpectrumAvgBufferPtr;
+        protected UnsafeBuffer fftSpectrumWaitingBuffer;
+        protected T* fftSpectrumWaitingPtr;
         protected UnsafeBuffer fftSpectrumFinalBuffer;
         protected float* fftSpectrumFinalBufferPtr;
 
         public override event FFTProcessorOnBlockEventArgs OnBlockProcessed;
 
+        private int waitingSamples;
         private int _fftBins;
         public override int FftBins {
             get => _fftBins;
@@ -96,38 +97,28 @@ namespace RomanPort.LibSDR.Framework.Components.FFT
 
         public void AddSamples(T* ptr, int count)
         {
-            //Compute
-            ProcessIncomingBlock(ptr);
-
-            //Copy
-            Utils.Memcpy(fftSpectrumFinalBufferPtr, fftSpectrumBufferPtr, FftBufferSize * sizeof(float));
-        }
-
-        /*public void AddSamples(T* ptr, int count)
-        {
-            //Clear out the buffer
-            for (int i = 0; i < FftBufferSize; i++)
-                fftSpectrumAvgBufferPtr[i] = 0;
-
-            //Process
-            float rounds = 0;
-            for (int i = 0; i + FftBufferSize < count; i += FftBufferSize)
+            while(count > 0)
             {
-                //Compute
-                ProcessIncomingBlock(ptr + i);
-
-                //Add
-                for (int j = 0; j < FftBufferSize; j++)
-                    fftSpectrumAvgBufferPtr[j] += fftSpectrumBufferPtr[j];
+                //Transfer
+                int waitingTransfer = Math.Min(FftBufferSize - waitingSamples, count);
+                Utils.Memcpy(fftSpectrumWaitingPtr + waitingSamples, ptr, waitingTransfer * sizeof(T));
 
                 //Update state
-                rounds++;
+                count -= waitingTransfer;
+                ptr += waitingTransfer;
+                waitingSamples += waitingTransfer;
+
+                //Process block
+                if (waitingSamples == FftBufferSize)
+                {
+                    ProcessIncomingBlock(fftSpectrumWaitingPtr);
+                    waitingSamples = 0;
+                }
             }
 
-            //Average and copy
-            for (int i = 0; i < FftBufferSize; i++)
-                fftSpectrumFinalBufferPtr[i] = fftSpectrumAvgBufferPtr[i] / rounds;
-        }*/
+            //Copy final block
+            Utils.Memcpy(fftSpectrumFinalBufferPtr, fftSpectrumBufferPtr, FftBufferSize * sizeof(float));
+        }
 
         public override void GetFFTSnapshot(float* frame)
         {

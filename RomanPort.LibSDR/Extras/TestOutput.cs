@@ -1,4 +1,5 @@
 ﻿using RomanPort.LibSDR.Framework;
+using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,6 +13,17 @@ namespace RomanPort.LibSDR.Extras
         private FileStream file;
 
         private static TestOutput globalTest;
+
+        public static void WritePtrToFile(string path, void* ptr, int len)
+        {
+            FileStream fs = new FileStream(path, FileMode.Create);
+            byte[] buffer = new byte[len];
+            fixed (byte* outBuffer = buffer)
+                Utils.Memcpy(outBuffer, ptr, len);
+            fs.Write(buffer, 0, len);
+            fs.Flush();
+            fs.Close();
+        }
 
         public static TestOutput GetGlobalTestFile(int sampleRate, short channels = 2)
         {
@@ -29,14 +41,25 @@ namespace RomanPort.LibSDR.Extras
 
         public TestOutput(int sampleRate, short channels = 2)
         {
-            //Get file path
-            string path = "E:\\test_" + DateTime.UtcNow.Ticks + ".wav";
+            string path = "E:\\TEST_OUTPUT_FILE.wav";
+            int index = 1;
+            while(true)
+            {
+                try
+                {
+                    file = new FileStream(path, FileMode.Create);
+                    encoder = new WavEncoder(file, sampleRate, channels, 16);
+                    break;
+                } catch
+                {
+                    index++;
+                    path = $"E:\\TEST_OUTPUT_FILE_{index}.wav";
+                }
+            }
+
+            //Log
             Console.WriteLine("CREATED TEST OUTPUT AT " + path);
             Console.WriteLine("You shouldn't see this in prod. Sent by RomanPort LibSDR.");
-
-            //Open
-            file = new FileStream(path, FileMode.Create);
-            encoder = new WavEncoder(file, sampleRate, channels, 16);
         }
 
         public void WriteSamples(Complex* ptr, int count)
