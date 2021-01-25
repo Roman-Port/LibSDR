@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RomanPort.LibSDR.Components;
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -166,14 +167,14 @@ namespace RomanPort.LibSDR.Framework.Util
         private void Configure()
         {
             _phase = 0.0f;
-            var norm = (float)(2.0 * Math.PI / _sampleRate);
+            var norm = 2.0F * MathF.PI / _sampleRate;
             _frequencyRadian = _defaultFrequency * norm;
             _minFrequencyRadian = (_defaultFrequency - _range) * norm;
             _maxFrequencyRadian = (_defaultFrequency + _range) * norm;
             _alpha = 2.0f * _zeta * _bandwidth * norm;
             _beta = (_alpha * _alpha) / (4.0f * _zeta * _zeta);
             _phaseAdj = _phaseAdjM * _sampleRate + _phaseAdjB;
-            _lockAlpha = (float)(1.0 - Math.Exp(-1.0 / (_sampleRate * _lockTime)));
+            _lockAlpha = 1.0f - MathF.Exp(-1.0f / (_sampleRate * _lockTime));
             _lockOneMinusAlpha = 1.0f - _lockAlpha;
         }
 
@@ -216,7 +217,7 @@ namespace RomanPort.LibSDR.Framework.Util
 
             _phaseErrorAvg = _lockOneMinusAlpha * _phaseErrorAvg + _lockAlpha * phaseError * phaseError;
             _phase += _frequencyRadian + _alpha * phaseError;
-            _phase %= (float)(2.0 * Math.PI);
+            _phase %= 2.0f * MathF.PI;
             _adjustedPhase = _phase + _phaseAdj;
         }
     }

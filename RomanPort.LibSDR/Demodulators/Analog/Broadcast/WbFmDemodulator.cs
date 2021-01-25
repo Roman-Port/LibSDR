@@ -1,16 +1,21 @@
-﻿using RomanPort.LibSDR.Demodulators.Analog.Primitive;
-using RomanPort.LibSDR.Extras.RDS;
-using RomanPort.LibSDR.Framework;
-using RomanPort.LibSDR.Framework.Components.FFT.Processors;
-using RomanPort.LibSDR.Framework.Extras.RDS;
+﻿using RomanPort.LibSDR.Framework;
+using RomanPort.LibSDR.Components.Digital.RDS;
+using RomanPort.LibSDR.Components.FFT.Processors;
+using RomanPort.LibSDR.Components.Filters;
 using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using RomanPort.LibSDR.Components.FFT.Generators;
+using RomanPort.LibSDR.Components.Filters.Builders;
+using RomanPort.LibSDR.Components.Analog.Primitive;
+using RomanPort.LibSDR.Components.Decimators;
+using RomanPort.LibSDR.Components;
 
 namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
 {
     public delegate void StereoDetectedEventArgs(bool stereoDetected);
+    public unsafe delegate void MpxDataEmitted(float* ptr, int count);
 
     public unsafe class WbFmDemodulator : IAudioDemodulator
     {
@@ -18,14 +23,11 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
         private const int MAX_BC_AUDIO_FREQ = 16000;
         private const int STEREO_PILOT_FREQ = 19000;
 
-        public WbFmDemodulator(int outputDecimationRate = 1)
+        public WbFmDemodulator()
         {
-            //Set
-            this.outputDecimationRate = outputDecimationRate;
-
             //Create various bits
             fm = new FmDemodulator();
-            rdsDemodulator = new RdsDemodulator();
+            rdsDemodulator = new RDSDecoder();
             stereoPilotFilter = new IirFilter();
 
             //Create stereo pilot
@@ -40,131 +42,129 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
             stereoPilot.LockThreshold = 1.0f;
         }
 
+        private const int MIN_MPX_RATE = (58000 * 2) + MPX_TRANSITION_WIDTH; //Includes all the way up to RDS
+        private const int MPX_TRANSITION_WIDTH = 8000;
+
         public bool StereoDetected { get; private set; }
         public event StereoDetectedEventArgs OnStereoDetected;
+        public float MpxSampleRate { get => sampleRate; }
+        public event MpxDataEmitted OnMpxSamplesEmitted;
+
+        //Rate of audio, also the output
+        private int audioDecimationRate;
+        private float audioSampleRate;
+        private FloatFirFilter channelAFilter;
+        private FloatFirFilter channelBFilter;
 
         //Misc
         private FmDemodulator fm;
-        private int outputDecimationRate = 1;
         private IirFilter stereoPilotFilter;
         private Pll stereoPilot;
-        private FirFilter channelAFilter;
-        private FirFilter channelBFilter;
+        
         private float deemphasisAlpha;
         private float deemphasisAvgL;
         private float deemphasisAvgR;
-        private RdsDemodulator rdsDemodulator;
+        private RDSDecoder rdsDemodulator;
         private bool rdsEnabled;
-
-        //Modules. These may be null and are created using the "EnableX" functions
-        private FFTProcessorHalfFloat fft;
-        private RDSClient rdsClient;
+        private float sampleRate;
 
         //Buffers
         private UnsafeBuffer mpxBuffer;
         private float* mpx;
 
-        public FFTProcessorHalfFloat EnableMpxFFT(int fftBinSize = 2048)
+        public FFTGenerator EnableMpxFFT(int fftBinSize = 2048)
         {
-            if (fft == null)
-                fft = new FFTProcessorHalfFloat(fftBinSize);
+            var fft = new FFTGenerator(fftBinSize, true);
+            OnMpxSamplesEmitted += (float* ptr, int count) => fft.AddSamples(ptr, count);
             return fft;
         }
 
-        public RDSClient UseRds()
-        {
-            if (rdsClient == null)
-            {
-                rdsClient = new RDSClient();
-                rdsClient.SubscribeToRdsDemodulator(UseRdsDemodulator());
-            }
-            return rdsClient;
-        }
-
-        public RdsDemodulator UseRdsDemodulator()
+        public RDSDecoder UseRds()
         {
             rdsEnabled = true;
             return rdsDemodulator;
         }
 
-        public void Configure(int bufferSize, float sampleRate)
+        public float Configure(int bufferSize, float sampleRate, float targetOutputRate)
         {
-            //Caluclate
-            int decimatedSampleRate = (int)(sampleRate / outputDecimationRate);
+            //Set
+            this.sampleRate = sampleRate;
+            
+            //Configure base FM
+            fm.Configure(bufferSize, sampleRate);
 
-            //Create buffers
-            mpxBuffer = UnsafeBuffer.Create(bufferSize, out mpx);
+            //Calculate the audio decimation rate
+            audioDecimationRate = DecimationUtil.CalculateDecimationRate(sampleRate, targetOutputRate, out audioSampleRate);
+            var coefficients = new BandPassFilterBuilder(sampleRate, MIN_BC_AUDIO_FREQ, MAX_BC_AUDIO_FREQ)
+                .SetAutomaticTapCount(STEREO_PILOT_FREQ - MAX_BC_AUDIO_FREQ, 40)
+                .SetWindow(WindowType.Hamming)
+                .BuildFilter();
+            channelAFilter = new FloatFirFilter(coefficients, audioDecimationRate);
+            channelBFilter = new FloatFirFilter(coefficients, audioDecimationRate);
+
+            //Create buffer
+            if (mpxBuffer == null || mpxBuffer.Length != bufferSize)
+            {
+                mpxBuffer?.Dispose();
+                mpxBuffer = UnsafeBuffer.Create(bufferSize, out mpx);
+            }
 
             //Configure stereo
             stereoPilot.SampleRate = sampleRate;
-            stereoPilotFilter.Init(IirFilterType.BandPass, STEREO_PILOT_FREQ, sampleRate, 500);
-
-            //Create filters
-            var coefficients = FilterBuilder.MakeBandPassKernel(sampleRate, 250, MIN_BC_AUDIO_FREQ, MAX_BC_AUDIO_FREQ, WindowType.BlackmanHarris4);
-            channelAFilter = new FirFilter(coefficients, outputDecimationRate);
-            channelBFilter = new FirFilter(coefficients, outputDecimationRate);
+            stereoPilotFilter.Init(IirFilterType.BandPass, STEREO_PILOT_FREQ, sampleRate, 200);
 
             //Configure RDS
             rdsDemodulator.Configure(sampleRate);
-            rdsDemodulator.CreateBuffers(bufferSize);
 
             //Configure Deemphasis
-            deemphasisAlpha = (float)(1.0 - Math.Exp(-1.0 / (decimatedSampleRate * (50f * 1e-6f))));
+            deemphasisAlpha = 1.0f - MathF.Exp(-1.0f / (audioSampleRate * (50f * 1e-6f)));
             deemphasisAvgL = 0;
             deemphasisAvgR = 0;
+
+            return audioSampleRate;
         }
 
-        public void Demodulate(Complex* iq, float* audio, int count)
+        public int Demodulate(Complex* iq, float* audio, int count)
         {
-            //Demodulate FM into the MPX buffer
-            fm.Demodulate(iq, mpx, count);
-
-            //FFT
-            fft?.AddSamples(mpx, count);
-
-            //Process audio
-            ProcessAudioMono(audio, count);
-
-            //Process RDS
-            if (rdsEnabled)
-                rdsDemodulator.Process(mpx, count);
+            return DemodulateBase(iq, audio, null, count, true, false);
         }
 
-        public void DemodulateStereo(Complex* iq, float* left, float* right, int count)
+        public int DemodulateStereo(Complex* iq, float* left, float* right, int count)
         {
-            //Demodulate FM into the MPX buffer
-            fm.Demodulate(iq, mpx, count);
-
-            //FFT
-            fft?.AddSamples(mpx, count);
-
-            //Process audio
-            ProcessAudioStereo(left, right, count);
-
-            //Process RDS
-            if (rdsEnabled)
-                rdsDemodulator.Process(mpx, count);
+            return DemodulateBase(iq, left, right, count, true, true);
         }
 
         public void DemodulateRDS(Complex* iq, int count)
         {
+            DemodulateBase(iq, null, null, count, false, false);
+        }
+
+        private int DemodulateBase(Complex* iq, float* left, float* right, int count, bool audioEnabled, bool audioStereoEnabled)
+        {
             //Demodulate FM into the MPX buffer
             fm.Demodulate(iq, mpx, count);
 
-            //FFT
-            fft?.AddSamples(mpx, count);
+            //Emit MPX
+            OnMpxSamplesEmitted?.Invoke(mpx, count);
 
             //Process RDS
-            if(rdsEnabled)
+            if (rdsEnabled)
                 rdsDemodulator.Process(mpx, count);
+
+            //Process audio
+            if (!audioEnabled)
+                return count;
+            if (audioStereoEnabled)
+                return ProcessAudioStereo(left, right, count);
+            else
+                return ProcessAudioMono(left, count);
         }
 
-        private void ProcessAudioMono(float* audio, int count)
+        private int ProcessAudioMono(float* audio, int count)
         {
             //Decimate and filter L+R
             Utils.Memcpy(audio, mpx, count * sizeof(float));
-            int audioLength = count / outputDecimationRate;
-            channelAFilter.Process(audio, count);
+            int audioLength = channelAFilter.Process(audio, count);
 
             //Demodulate L - R
             for (var i = 0; i < count; i++)
@@ -180,21 +180,22 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
 
             //Do preemp
             ProcessDeemphasisMono(audio, audioLength);
+
+            return audioLength;
         }
 
-        private void ProcessAudioStereo(float* left, float* right, int count)
+        private int ProcessAudioStereo(float* left, float* right, int count)
         {
             //Decimate and filter L+R
             Utils.Memcpy(left, mpx, count * sizeof(float));
-            int audioLength = count / outputDecimationRate;
-            channelAFilter.Process(left, count);
+            int audioLength = channelAFilter.Process(left, count);
 
             //Demodulate L - R
             for (var i = 0; i < count; i++)
             {
                 var pilot = stereoPilotFilter.Process(mpx[i]);
                 stereoPilot.Process(pilot);
-                right[i] = mpx[i] * Trig.Sin((float)(stereoPilot.AdjustedPhase * 2.0));
+                right[i] = mpx[i] * Trig.Sin(stereoPilot.AdjustedPhase * 2.0f);
             }
 
             //Send events if mono/stereo status changed
@@ -227,6 +228,8 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
                 //Copy to the other channel
                 Utils.Memcpy(right, left, audioLength * sizeof(float));
             }
+
+            return audioLength;
         }
 
         private void ProcessDeemphasisMono(float* audio, int audioLength)

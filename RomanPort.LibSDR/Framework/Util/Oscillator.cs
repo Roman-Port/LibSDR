@@ -1,21 +1,31 @@
-﻿using System;
+﻿using RomanPort.LibSDR.Components;
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace RomanPort.LibSDR.Framework.Util
 {
-#if !__MonoCS__
-    [StructLayout(LayoutKind.Sequential, Pack = 16, Size = 80)]
-#endif
-    public unsafe struct Oscillator
+    public unsafe class Oscillator
     {
         private Complex _rotation;
         private Complex _vector;
-        private double _sampleRate;
-        private double _frequency;
+        private float _sampleRate;
+        private float _frequency;
 
-        public double SampleRate
+        public Oscillator()
+        {
+
+        }
+
+        public Oscillator(float sampleRate, float freqOffset)
+        {
+            this._sampleRate = sampleRate;
+            this._frequency = freqOffset;
+            Configure();
+        }
+
+        public float SampleRate
         {
             get { return _sampleRate; }
             set
@@ -28,7 +38,7 @@ namespace RomanPort.LibSDR.Framework.Util
             }
         }
 
-        public double Frequency
+        public float Frequency
         {
             get { return _frequency; }
             set
@@ -47,9 +57,9 @@ namespace RomanPort.LibSDR.Framework.Util
             {
                 _vector.Real = 1.0f;
             }
-            if (_sampleRate != default(double))
+            if (_sampleRate != default(float))
             {
-                var anglePerSample = 2.0 * Math.PI * _frequency / _sampleRate;
+                var anglePerSample = 2.0f * MathF.PI * _frequency / _sampleRate;
                 _rotation = Complex.FromAngle(anglePerSample);
             }
         }

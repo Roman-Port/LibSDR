@@ -9,9 +9,11 @@ using System.Threading;
 
 namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
 {
-    public unsafe class RtlSdrSource : IHardwareSource, ISource
+    public unsafe class RtlSdrSource : IHardwareSource
     {
         private readonly uint deviceIndex;
+
+        private static readonly RtlSdrReadAsyncDelegate rtlCallback = RtlSdrSamplesAvailable;
 
         //Misc
         private IntPtr device;
@@ -28,7 +30,7 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
         private DcRemover dcRemoverQ;
 
         //Internal stuff, don't touch
-        private bool isStreaming;
+        private volatile bool isStreaming;
         private uint sampleRate;
         private uint centerFreq;
         private int gainLevel;
@@ -56,6 +58,10 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
         public long CenterFrequency {
             get => centerFreq;
             set {
+                //Validate
+                if (device == IntPtr.Zero)
+                    throw new HardwareNotYetReadyException();
+
                 //Set on device
                 int opcode = NativeMethods.rtlsdr_set_center_freq(device, (uint)value);
                 if (opcode != RTL_SUCCESS_OPCODE)
@@ -69,6 +75,10 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
         public bool AutoGainEnabled {
             get => gainAuto;
             set {
+                //Validate
+                if (device == IntPtr.Zero)
+                    throw new HardwareNotYetReadyException();
+
                 //Set on device
                 int opcode = NativeMethods.rtlsdr_set_tuner_gain_mode(device, value ? 0 : 1);
                 if (opcode != RTL_SUCCESS_OPCODE)
@@ -83,8 +93,9 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
             get => gainLevel;
             set
             {
-                //Change gain mode
-                AutoGainEnabled = false;
+                //Validate
+                if (device == IntPtr.Zero)
+                    throw new HardwareNotYetReadyException();
 
                 //Set on device
                 int opcode = NativeMethods.rtlsdr_set_tuner_gain(device, value);
@@ -92,6 +103,7 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
                     throw new RtlDeviceErrorException(opcode);
 
                 //Set locally
+                gainAuto = false;
                 gainLevel = value;
             }
         }
@@ -101,6 +113,10 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
             get => sampleRate;
             set
             {
+                //Validate
+                if (device == IntPtr.Zero)
+                    throw new HardwareNotYetReadyException();
+
                 //Set on device
                 int opcode = NativeMethods.rtlsdr_set_sample_rate(device, (uint)value);
                 if (opcode != RTL_SUCCESS_OPCODE)
@@ -117,9 +133,9 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
         public int[] TunerGains {
             get
             {
-                //Check
-                if (device == null)
-                    throw new Exception("Device not yet opened.");
+                //Validate
+                if (device == IntPtr.Zero)
+                    throw new HardwareNotYetReadyException();
 
                 //Fetch
                 int supportedGainsCount = NativeMethods.rtlsdr_get_tuner_gains(device, null);
@@ -198,7 +214,7 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
             //Open device for streaming
             workerThread = new Thread(() =>
             {
-                NativeMethods.rtlsdr_read_async(device, RtlSdrSamplesAvailable, (IntPtr)gcHandle, 0, (uint)(bufferLength * 2));
+                NativeMethods.rtlsdr_read_async(device, rtlCallback, (IntPtr)gcHandle, 0, (uint)(bufferLength * 2));
                 isStreaming = false;
             });
             workerThread.IsBackground = true;
@@ -221,7 +237,7 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
                 throw new RtlDeviceErrorException(opcode);
 
             //Update state
-            isStreaming = false;
+            while (isStreaming) ;
         }
 
         public void Close()
@@ -233,7 +249,8 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
             int opcode = NativeMethods.rtlsdr_close(device);
             if (opcode != RTL_SUCCESS_OPCODE)
                 throw new RtlDeviceErrorException(opcode);
-
+            device = IntPtr.Zero;
+            
             //Dispose of buffers
             buffer.Dispose();
 

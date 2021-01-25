@@ -1,5 +1,5 @@
 ﻿using RomanPort.LibSDR.Framework;
-using RomanPort.LibSDR.Framework.Components.IO.WAV;
+using RomanPort.LibSDR.Components.IO.WAV;
 using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
@@ -7,6 +7,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using RomanPort.LibSDR.Components.IO;
 
 namespace RomanPort.LibSDR.Sources.Misc
 {
@@ -25,6 +26,7 @@ namespace RomanPort.LibSDR.Sources.Misc
         private Thread streamThread;
         private UnsafeBuffer buffer;
         private Complex* bufferPtr;
+        private SampleThrottle throttle;
 
         public int Channels { get => reader.Channels; }
         public int SampleRate { get => reader.SampleRate; }
@@ -54,6 +56,9 @@ namespace RomanPort.LibSDR.Sources.Misc
             //Validate
             if (reader.Channels != 2)
                 throw new Exception("This is not an IQ file. Two channels are required.");
+
+            //Make throttle
+            throttle = new SampleThrottle(reader.SampleRate);
 
             //Send events
             OnSampleRateChanged?.Invoke(reader.SampleRate);
@@ -96,7 +101,9 @@ namespace RomanPort.LibSDR.Sources.Misc
             while(streamStatus == StreamStatus.RUNNING)
             {
                 int read = reader.Read(bufferPtr, bufferSize);
+                throttle.SamplesProcessed(read);
                 OnSamplesAvailable?.Invoke(bufferPtr, read);
+                throttle.Throttle();
             }
             streamStatus = StreamStatus.STOPPED;
         }

@@ -1,4 +1,5 @@
-﻿using RomanPort.LibSDR.Framework.Util;
+﻿using RomanPort.LibSDR.Components;
+using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,6 +10,11 @@ namespace RomanPort.LibSDR.Framework
     {
         public float Real;
         public float Imag;
+
+        public static readonly Complex Zero = new Complex(0.0f, 0.0f);
+        public static readonly Complex One = new Complex(1.0f, 0.0f);
+        public static readonly Complex Two = new Complex(2.0f, 0.0f);
+        public static readonly Complex ImaginaryOne = new Complex(0.0f, 1.0f);
 
         public Complex(float real, float imaginary)
         {
@@ -24,7 +30,7 @@ namespace RomanPort.LibSDR.Framework
 
         public float Modulus()
         {
-            return (float)Math.Sqrt(ModulusSquared());
+            return MathF.Sqrt(ModulusSquared());
         }
 
         public float ModulusSquared()
@@ -34,12 +40,13 @@ namespace RomanPort.LibSDR.Framework
 
         public float Argument()
         {
-            return (float)Math.Atan2(Imag, Real);
+            return MathF.Atan2(Imag, Real);
         }
 
         public float ArgumentFast()
         {
             return Trig.Atan2(Imag, Real);
+            //return (ImaginaryOne / Two) * (Log(One - ImaginaryOne * value) - Log(One + ImaginaryOne * value));
         }
 
         public Complex Conjugate()
@@ -58,17 +65,21 @@ namespace RomanPort.LibSDR.Framework
             var norm = 1.95f - ModulusSquared();
             return this * norm;
         }
+        /*public Complex Log()
+        {
+            //return (new Complex((Math.Log(FloatingMathF.Abs(this))), (MathF.Atan2(Imag, Real))));
+        }*/
 
         public override string ToString()
         {
             return string.Format("real {0}, imag {1}", Real, Imag);
         }
 
-        public static Complex FromAngle(double angle)
+        public static Complex FromAngle(float angle)
         {
             Complex result;
-            result.Real = (float)Math.Cos(angle);
-            result.Imag = (float)Math.Sin(angle);
+            result.Real = MathF.Cos(angle);
+            result.Imag = MathF.Sin(angle);
             return result;
         }
 

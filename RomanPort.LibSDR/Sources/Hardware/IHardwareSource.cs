@@ -5,7 +5,7 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Sources.Hardware
 {
-    public interface IHardwareSource
+    public interface IHardwareSource : ISource
     {
         long CenterFrequency { get; set; }
         bool AutoGainEnabled { get; set; }

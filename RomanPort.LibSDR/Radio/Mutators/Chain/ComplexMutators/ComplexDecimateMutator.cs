@@ -1,5 +1,5 @@
 ﻿using RomanPort.LibSDR.Framework;
-using RomanPort.LibSDR.Framework.Components.Filters;
+using RomanPort.LibSDR.Components.Filters;
 using System;
 using System.Collections.Generic;
 using System.Text;

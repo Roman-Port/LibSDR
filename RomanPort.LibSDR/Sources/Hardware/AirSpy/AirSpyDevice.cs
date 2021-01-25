@@ -39,6 +39,19 @@ namespace RomanPort.LibSDR.Sources.Hardware.AirSpy
             gcHandle = GCHandle.Alloc(this);
         }
 
+        public byte LinearGain
+        {
+            get => _linearGain;
+            set
+            {
+                airspy_error error = NativeMethods.airspy_set_linearity_gain(device, value);
+                if (error != airspy_error.AIRSPY_SUCCESS)
+                    throw new AirSpyException(error, "Error setting the gain.");
+                _linearGain = value;
+            }
+        }
+        private byte _linearGain;
+
         public uint CenterFrequency
         {
             get => _centerFreqeuncy;

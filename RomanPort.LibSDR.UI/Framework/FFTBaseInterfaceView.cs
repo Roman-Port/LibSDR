@@ -1,4 +1,5 @@
-﻿using RomanPort.LibSDR.Framework.Components.FFT;
+﻿using RomanPort.LibSDR.Components.FFT;
+using RomanPort.LibSDR.Components.FFT.Mutators;
 using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
@@ -43,14 +44,11 @@ namespace RomanPort.LibSDR.UI.Framework
             return (db - FftMinDb) / (FftMaxDb - FftMinDb);
         }
 
-        protected FFTScaler fft;
-        private UnsafeBuffer fftBuffer;
-        private unsafe float* fftBufferPtr;
+        protected FFTResizer fft;
 
-        public void SetFFT(FFTInterface fft)
+        public void SetFFT(IFftMutatorSource fft)
         {
-            this.fft = new FFTScaler(fft, Width);
-            UpdateFFTWidth();
+            this.fft = new FFTResizer(fft, Width);
         }
 
         public unsafe void RefreshFFT()
@@ -58,27 +56,13 @@ namespace RomanPort.LibSDR.UI.Framework
             //If there is no FFT set, abort
             if (fft == null)
                 return;
-            
-            //Update width if needed
-            if (fft.Width != Width)
-                UpdateFFTWidth();
 
-            //Update
-            fft.GetFFTSnapshot(fftBufferPtr);
-            RefreshFFT(fftBufferPtr, Width);
-        }
+            //Grab frame
+            fft.OutputSize = Width;
+            float* fftFrame = fft.ProcessFFT(out int fftWidth);
 
-        private unsafe void UpdateFFTWidth()
-        {
-            //Set
-            fft.Width = Width;
-
-            //Free buffer
-            fftBuffer?.Dispose();
-
-            //Create buffer
-            fftBuffer = UnsafeBuffer.Create(Width, sizeof(float));
-            fftBufferPtr = (float*)fftBuffer;
+            //Refresh
+            RefreshFFT(fftFrame, fftWidth);
         }
 
         public unsafe abstract void RefreshFFT(float* pixelDbs, int count);

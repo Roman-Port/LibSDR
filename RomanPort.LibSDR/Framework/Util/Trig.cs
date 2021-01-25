@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RomanPort.LibSDR.Components;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -25,20 +26,20 @@ namespace RomanPort.LibSDR.Framework.Util
             _sinPtr = (float*)_sinBuffer;
             _cosPtr = (float*)_cosBuffer;
 
-            const float twoPi = (float)(Math.PI * 2.0);
-            const float pi2 = (float)(Math.PI / 2.0);
+            const float twoPi = MathF.PI * 2.0f;
+            const float pi2 = MathF.PI / 2.0f;
             _indexScale = sampleCount / twoPi;
 
             for (var i = 0; i < sampleCount; i++)
             {
-                _sinPtr[i] = (float)Math.Sin((i + 0.5f) / sampleCount * twoPi);
-                _cosPtr[i] = (float)Math.Cos((i + 0.5f) / sampleCount * twoPi);
+                _sinPtr[i] = MathF.Sin((i + 0.5f) / sampleCount * twoPi);
+                _cosPtr[i] = MathF.Cos((i + 0.5f) / sampleCount * twoPi);
             }
 
             for (var angle = 0.0f; angle < twoPi; angle += pi2)
             {
-                _sinPtr[(int)(angle * _indexScale) & _mask] = (float)Math.Sin(angle);
-                _cosPtr[(int)(angle * _indexScale) & _mask] = (float)Math.Cos(angle);
+                _sinPtr[(int)(angle * _indexScale) & _mask] = MathF.Sin(angle);
+                _cosPtr[(int)(angle * _indexScale) & _mask] = MathF.Cos(angle);
             }
         }
 
@@ -63,8 +64,8 @@ namespace RomanPort.LibSDR.Framework.Util
 
         public static float Atan2(float y, float x)
         {
-            const float pi = (float)Math.PI;
-            const float pi2 = (float)(Math.PI / 2.0);
+            const float pi = MathF.PI;
+            const float pi2 = MathF.PI / 2.0f;
 
             float angle;
             if (x == 0.0)
@@ -76,7 +77,7 @@ namespace RomanPort.LibSDR.Framework.Util
                 return -pi2;
             }
             float z = y / x;
-            if (Math.Abs(z) < 1.0)
+            if (z < 1 && z > -1) //previously "MathF.Abs(z) < 1"
             {
                 angle = z / (1.0f + 0.2854f * z * z);
                 if (x < 0.0)

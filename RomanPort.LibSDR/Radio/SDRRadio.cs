@@ -1,6 +1,9 @@
-﻿using RomanPort.LibSDR.Framework;
+﻿using RomanPort.LibSDR.Demodulators;
+using RomanPort.LibSDR.Framework;
 using RomanPort.LibSDR.Framework.Util;
 using RomanPort.LibSDR.Radio.Framework;
+using RomanPort.LibSDR.Radio.Modules;
+using RomanPort.LibSDR.Sources;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -17,111 +20,125 @@ namespace RomanPort.LibSDR.Radio
             IsRealtime = cfg.IsRealtime;
         }
 
-        //Config options
+        //Public facing
         public int BufferSize { get; private set; }
         public bool IsRealtime { get; private set; }
-
-        //Public misc
         public SDRRadioState RadioState { get; private set; }
-
-        //Internal buffers
-        private Complex* iqBufferAPtr;
-        private Complex* iqBufferBPtr;
+        public float SampleRate { get; private set; }
 
         //Internal misc
-        private IIQSource source;
-        private Thread workerThread;
+        private ISource source;
         private List<SDRRadioModule> modules = new List<SDRRadioModule>();
-        private List<UnsafeBuffer> managedBuffers = new List<UnsafeBuffer>(); //Buffers from RequestBuffer
 
         //Public API
 
         /// <summary>
         /// Starts the radio and delays for a short time while the thread begins.
         /// </summary>
-        public void StartRadio()
+        public bool StartRadio(ISource source)
         {
             //If we're already in a running state, do nothing
             if (RadioState != SDRRadioState.STOPPED)
-                return;
+                return false;
 
             //Set state
-            RadioState = SDRRadioState.STARTING;
+            RadioState = SDRRadioState.RUNNING;
 
-            //Launch worker thread
-            workerThread = new Thread(RunWorker);
-            workerThread.IsBackground = true;
-            workerThread.Name = "LibSDR Radio Worker";
-            workerThread.Start();
+            //Bind events
+            source.OnSampleRateChanged += OnSampleRateChanged;
+            source.OnSamplesAvailable += OnSamplesAvailable;
 
-            //Wait
-            while (RadioState == SDRRadioState.STARTING) ;
+            //Configure
+            this.source = source;
+            source.Open(BufferSize);
+            source.BeginStreaming();
+
+            return true;
         }
 
         /// <summary>
         /// Stops the radio and delays for a short time while the thread stops.
         /// </summary>
-        public void StopRadio()
+        public bool StopRadio()
         {
             //If we're not running, do nothing
             if (RadioState != SDRRadioState.RUNNING)
-                return;
+                return false;
 
-            //Request stop
+            //Set state
             RadioState = SDRRadioState.STOPPING;
 
-            //Wait
-            while (RadioState == SDRRadioState.STOPPING) ;
+            //Unbind events
+            source.OnSampleRateChanged -= OnSampleRateChanged;
+            source.OnSamplesAvailable -= OnSamplesAvailable;
+
+            //Request stop
+            source.EndStreaming();
+
+            return true;
+        }
+
+        /// <summary>
+        /// Adds a module to the radio for processing.
+        /// </summary>
+        /// <param name="module"></param>
+        /// <returns></returns>
+        public SDRRadioModule AddModule(SDRRadioModule module)
+        {
+            SendThreadedMessage(new CommandAddModule(this, module));
+            return module;
+        }
+
+        /// <summary>
+        /// Adds a demodulator to this, with the bandwidth specified. Output sample rate will match what is specified
+        /// </summary>
+        /// <returns></returns>
+        public StereoAudioDemodulatorModule AddAudioDemodulator(IAudioDemodulator demodulator, float bandwidth, float outputSampleRate)
+        {
+            StereoAudioDemodulatorModule module = new StereoAudioDemodulatorModule(demodulator, bandwidth, outputSampleRate);
+            AddModule(module);
+            return module;
         }
 
         //Internal
 
-        /// <summary>
-        /// Creates a new buffer of T, with the size of BufferSize
-        /// </summary>
-        /// <returns></returns>
-        protected T* RequestBuffer<T>() where T : unmanaged
+        private void OnSampleRateChanged(float sampleRate)
         {
-            //Open
-            UnsafeBuffer buffer = UnsafeBuffer.Create(BufferSize, sizeof(T));
+            //Set
+            SampleRate = sampleRate;
 
-            //Add
-            managedBuffers.Add(buffer);
-
-            //Return pointer
-            return (T*)buffer;
+            //Configure all modules
+            foreach (var m in modules)
+                m.Configure(BufferSize, sampleRate);
         }
 
-        /// <summary>
-        /// The main loop, ran as a worker
-        /// </summary>
-        private void RunWorker()
+        private void OnSamplesAvailable(Complex* samples, int count)
         {
-            while(RadioState == SDRRadioState.STARTING || RadioState == SDRRadioState.RUNNING)
+            //Process threaded commands
+            HandleQueuedMessages();
+
+            //Send to modules
+            foreach (var m in modules)
+                m.ProcessSamples(samples, count);
+        }
+
+        //Multithreaded commands
+
+        private class CommandAddModule : ISDRMessage
+        {
+            public CommandAddModule(SDRRadio radio, SDRRadioModule module)
             {
-                //Handle queued worker commands
-                HandleQueuedMessages();
+                this.radio = radio;
+                this.module = module;
+            }
 
-                //Update state
-                RadioState = SDRRadioState.RUNNING;
-
-                //Read
-                int read = source.Read(iqBufferAPtr, BufferSize);
-
-                //Dispatch to modules
-                foreach(var m in modules)
-                {
-                    //If this is a destructive module, clone the IQ data into another buffer
-                    Complex* ptr = iqBufferAPtr;
-                    if(m.IsDestructive)
-                    {
-                        Utils.Memcpy(iqBufferBPtr, iqBufferAPtr, read * sizeof(Complex));
-                        ptr = iqBufferBPtr;
-                    }
-
-                    //Run
-                    m.OnIncomingSamples(ptr, read);
-                }
+            private SDRRadio radio;
+            private SDRRadioModule module;
+            
+            public void Process()
+            {
+                module.Configure(radio.BufferSize, radio.SampleRate);
+                radio.modules.Add(module);
             }
         }
     }

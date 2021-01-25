@@ -18,8 +18,8 @@ namespace RomanPort.LibSDR.UI.Framework
         private UnsafeBuffer imgBuffer;
 
         protected UnsafeColor* pixels;
-        protected int pixelsWidth { get => img.Width; }
-        protected int pixelsHeight { get => img.Height; }
+        protected int pixelsWidth { get; private set; }
+        protected int pixelsHeight { get; private set; }
 
         public RawDrawableView()
         {
@@ -47,6 +47,8 @@ namespace RomanPort.LibSDR.UI.Framework
             imgBuffer = UnsafeBuffer.Create(width * height, sizeof(UnsafeColor));
             pixels = (UnsafeColor*)imgBuffer;
             img = new Bitmap(width, height, width * 4, PixelFormat.Format32bppPArgb, (IntPtr)imgBuffer.Address);
+            pixelsWidth = width;
+            pixelsHeight = height;
 
             //Send to users
             DrawableViewReset(pixelsWidth, pixelsHeight);

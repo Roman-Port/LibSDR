@@ -10,17 +10,17 @@ namespace RomanPort.LibSDR.Radio.Mutators.Chain.ComplexMutators
     {
         public ComplexOffsetMutator(float offsetFreq)
         {
-            converter = new DownConverter(1);
+            converter = new Oscillator();
             converter.Frequency = offsetFreq;
         }
 
-        private DownConverter converter;
+        private Oscillator converter;
 
         public override float OutputSampleRate => throw new NotImplementedException();
 
         public override void DisposeInternal()
         {
-            converter.Dispose();
+            
         }
 
         protected override void ConfigureInternal(float inputSampleRate)
@@ -30,7 +30,7 @@ namespace RomanPort.LibSDR.Radio.Mutators.Chain.ComplexMutators
 
         protected override unsafe int ProcessInternal(Complex* ptr, int count)
         {
-            converter.Process(ptr, count);
+            converter.Mix(ptr, count);
             return count;
         }
     }

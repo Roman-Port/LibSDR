@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RomanPort.LibSDR.Components;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -9,7 +10,7 @@ namespace RomanPort.LibSDR.Framework.Util
         private const int MaxLutBits = 16; // 64k
         private const int MaxLutBins = 1 << MaxLutBits;
         private const int LutSize = MaxLutBins / 2;
-        private const double TwoPi = 2.0 * Math.PI;
+        private const float TwoPi = 2.0f * MathF.PI;
 
         private static UnsafeBuffer _lutBuffer = UnsafeBuffer.Create(LutSize, sizeof(Complex));
         private static Complex* _lut;
@@ -18,7 +19,7 @@ namespace RomanPort.LibSDR.Framework.Util
         {
             _lut = (Complex*)_lutBuffer;
 
-            const double angle = TwoPi / MaxLutBins;
+            const float angle = TwoPi / MaxLutBins;
 
             for (var i = 0; i < LutSize; i++)
             {
@@ -52,7 +53,7 @@ namespace RomanPort.LibSDR.Framework.Util
             for (var i = 0; i < length; i++)
             {
                 var m = buffer[i].Real * buffer[i].Real + buffer[i].Imag * buffer[i].Imag;
-                var strength = (float)(10.0 * Math.Log10(1e-60 + m)) + offset;
+                var strength = (10.0f * MathF.Log10(1e-60f + m)) + offset;
                 power[i] = strength;
             }
         }
@@ -311,7 +312,7 @@ namespace RomanPort.LibSDR.Framework.Util
                 le = 1 << l;
                 le2 = le / 2;
 
-                var angle = Math.PI / le2;
+                var angle = MathF.PI / le2;
 
                 for (j = 1; j <= le2; ++j)
                 {

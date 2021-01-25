@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RomanPort.LibSDR.Components;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -19,9 +20,25 @@ namespace RomanPort.LibSDR.Framework.Util
     {
         public const int DefaultFilterOrder = 500;
 
-        public static float[] MakeWindow(WindowType windowType, int length)
+        public static int CalculateFilterOrder(double sampleRate, float transitionWidth, float attenuation)
         {
-            var w = new float[length];
+            //Based on formula from Multirate Signal Processing for Communications Systems, Fredric J Harris
+            int count = (int)(attenuation * sampleRate / (22 * transitionWidth));
+            if ((count & 1) == 0) //If this is odd, make it even
+                count++;
+            return count;
+        }
+
+        public unsafe static float[] MakeWindow(WindowType windowType, int length)
+        {
+            float[] buf = new float[length];
+            fixed (float* bufPtr = buf)
+                MakeWindow(windowType, length, bufPtr);
+            return buf;
+        }
+
+        public unsafe static void MakeWindow(WindowType windowType, int length, float* w)
+        {
             length--;
             for (var i = 0; i <= length; i++)
             {
@@ -45,9 +62,9 @@ namespace RomanPort.LibSDR.Framework.Util
                         a2 = 0.0f;
                         a3 = 0.0f;
                         w[i] *= a0
-                              - a1 * (float)Math.Cos(2.0 * Math.PI * i / length)
-                              + a2 * (float)Math.Cos(4.0 * Math.PI * i / length)
-                              - a3 * (float)Math.Cos(6.0 * Math.PI * i / length);
+                              - a1 * MathF.Cos(2.0f * MathF.PI * i / length)
+                              + a2 * MathF.Cos(4.0f * MathF.PI * i / length)
+                              - a3 * MathF.Cos(6.0f * MathF.PI * i / length);
                         break;
 
                     case WindowType.Blackman:
@@ -56,9 +73,9 @@ namespace RomanPort.LibSDR.Framework.Util
                         a2 = 0.08f;
                         a3 = 0.0f;
                         w[i] *= a0
-                              - a1 * (float)Math.Cos(2.0 * Math.PI * i / length)
-                              + a2 * (float)Math.Cos(4.0 * Math.PI * i / length)
-                              - a3 * (float)Math.Cos(6.0 * Math.PI * i / length);
+                              - a1 * MathF.Cos(2.0f * MathF.PI * i / length)
+                              + a2 * MathF.Cos(4.0f * MathF.PI * i / length)
+                              - a3 * MathF.Cos(6.0f * MathF.PI * i / length);
                         break;
 
                     case WindowType.BlackmanHarris4:
@@ -67,9 +84,9 @@ namespace RomanPort.LibSDR.Framework.Util
                         a2 = 0.14128f;
                         a3 = 0.01168f;
                         w[i] *= a0
-                              - a1 * (float)Math.Cos(2.0 * Math.PI * i / length)
-                              + a2 * (float)Math.Cos(4.0 * Math.PI * i / length)
-                              - a3 * (float)Math.Cos(6.0 * Math.PI * i / length);
+                              - a1 * MathF.Cos(2.0f * MathF.PI * i / length)
+                              + a2 * MathF.Cos(4.0f * MathF.PI * i / length)
+                              - a3 * MathF.Cos(6.0f * MathF.PI * i / length);
                         break;
 
                     case WindowType.BlackmanHarris7:
@@ -81,18 +98,18 @@ namespace RomanPort.LibSDR.Framework.Util
                         a5 = 0.00077658482522f;
                         a6 = 0.00001388721735f;
                         w[i] *= a0
-                              - a1 * (float)Math.Cos(2.0 * Math.PI * i / length)
-                              + a2 * (float)Math.Cos(4.0 * Math.PI * i / length)
-                              - a3 * (float)Math.Cos(6.0 * Math.PI * i / length)
-                              + a4 * (float)Math.Cos(8.0 * Math.PI * i / length)
-                              - a5 * (float)Math.Cos(10.0 * Math.PI * i / length)
-                              + a6 * (float)Math.Cos(12.0 * Math.PI * i / length);
+                              - a1 * MathF.Cos(2.0f * MathF.PI * i / length)
+                              + a2 * MathF.Cos(4.0f * MathF.PI * i / length)
+                              - a3 * MathF.Cos(6.0f * MathF.PI * i / length)
+                              + a4 * MathF.Cos(8.0f * MathF.PI * i / length)
+                              - a5 * MathF.Cos(10.0f * MathF.PI * i / length)
+                              + a6 * MathF.Cos(12.0f * MathF.PI * i / length);
                         break;
 
                     case WindowType.HannPoisson:
                         n = i - length / 2.0f;
                         alpha = 0.005f;
-                        w[i] *= 0.5f * (float)((1.0 + Math.Cos(2.0 * Math.PI * n / length)) * Math.Exp(-2.0 * alpha * Math.Abs(n) / length));
+                        w[i] *= 0.5f * (1.0f + MathF.Cos(2.0f * MathF.PI * n / length)) * MathF.Exp(-2.0f * alpha * MathF.Abs(n) / length);
                         break;
 
                     case WindowType.Youssef:
@@ -103,14 +120,62 @@ namespace RomanPort.LibSDR.Framework.Util
                         n = i - length / 2.0f;
                         alpha = 0.005f;
                         w[i] *= a0
-                              - a1 * (float)Math.Cos(2.0 * Math.PI * i / length)
-                              + a2 * (float)Math.Cos(4.0 * Math.PI * i / length)
-                              - a3 * (float)Math.Cos(6.0 * Math.PI * i / length);
-                        w[i] *= (float)Math.Exp(-2.0 * alpha * Math.Abs(n) / length);
+                              - a1 * MathF.Cos(2.0f * MathF.PI * i / length)
+                              + a2 * MathF.Cos(4.0f * MathF.PI * i / length)
+                              - a3 * MathF.Cos(6.0f * MathF.PI * i / length);
+                        w[i] *= MathF.Exp(-2.0f * alpha * MathF.Abs(n) / length);
                         break;
                 }
             }
-            return w;
+        }
+
+        public static float[] MakeRootRaisedCosine(float gain, float sampling_freq, float symbol_rate, float alpha, int ntaps)
+        {
+            ntaps |= 1; // ensure that ntaps is odd
+
+            float spb = sampling_freq / symbol_rate; // samples per bit/symbol
+            float[] taps = new float[ntaps];
+            float scale = 0;
+            for (int i = 0; i < ntaps; i++)
+            {
+                float x1, x2, x3, num, den;
+                float xindx = i - ntaps / 2;
+                x1 = MathF.PI * xindx / spb;
+                x2 = 4 * alpha * xindx / spb;
+                x3 = x2 * x2 - 1;
+
+                if (MathF.Abs(x3) >= 0.000001)
+                {
+                    if (i != ntaps / 2)
+                        num = MathF.Cos((1 + alpha) * x1) +
+                              MathF.Sin((1 - alpha) * x1) / (4 * alpha * xindx / spb);
+                    else
+                        num = MathF.Cos((1 + alpha) * x1) + (1 - alpha) * MathF.PI / (4 * alpha);
+                    den = x3 * MathF.PI;
+                }
+                else
+                {
+                    if (alpha == 1)
+                    {
+                        taps[i] = -1;
+                        scale += taps[i];
+                        continue;
+                    }
+                    x3 = (1 - alpha) * x1;
+                    x2 = (1 + alpha) * x1;
+                    num = (MathF.Sin(x2) * (1 + alpha) * MathF.PI -
+                           MathF.Cos(x3) * ((1 - alpha) * MathF.PI * spb) / (4 * alpha * xindx) +
+                           MathF.Sin(x3) * spb * spb / (4 * alpha * xindx * xindx));
+                    den = -32 * MathF.PI * alpha * alpha * xindx / spb;
+                }
+                taps[i] = 4 * alpha * num / den;
+                scale += taps[i];
+            }
+
+            for (int i = 0; i < ntaps; i++)
+                taps[i] = taps[i] * gain / scale;
+
+            return taps;
         }
 
         public static float[] MakeSinc(double sampleRate, double frequency, int length)
@@ -120,7 +185,7 @@ namespace RomanPort.LibSDR.Framework.Util
                 throw new ArgumentException("Length should be odd", "length");
             }
 
-            var freqInRad = 2.0 * Math.PI * frequency / sampleRate;
+            var freqInRad = 2.0 * MathF.PI * frequency / sampleRate;
             var h = new float[length];
 
             for (var i = 0; i < length; i++)
@@ -139,25 +204,31 @@ namespace RomanPort.LibSDR.Framework.Util
             return h;
         }
 
-        public static float[] MakeSin(double sampleRate, double frequency, int length)
+        public static float[] MakeSin(float sampleRate, float frequency, int length)
         {
             if (length % 2 == 0)
             {
                 throw new ArgumentException("Length should be odd", "length");
             }
 
-            var freqInRad = 2.0 * Math.PI * frequency / sampleRate;
+            var freqInRad = 2.0f * MathF.PI * frequency / sampleRate;
             var h = new float[length];
 
             var halfLength = length / 2;
             for (var i = 0; i <= halfLength; i++)
             {
-                var y = (float)Math.Sin(freqInRad * i);
+                var y = MathF.Sin(freqInRad * i);
                 h[halfLength + i] = y;
                 h[halfLength - i] = -y;
             }
 
             return h;
+        }
+
+        public static float[] MakeLowPassKernel(double sampleRate, int cutoffFrequency, WindowType windowType)
+        {
+            int count = FilterBuilder.CalculateFilterOrder(sampleRate, cutoffFrequency, 92);
+            return MakeLowPassKernel(sampleRate, count, cutoffFrequency, windowType);
         }
 
         public static float[] MakeLowPassKernel(double sampleRate, int filterOrder, int cutoffFrequency, WindowType windowType)
@@ -179,11 +250,17 @@ namespace RomanPort.LibSDR.Framework.Util
             return InvertSpectrum(MakeLowPassKernel(sampleRate, filterOrder, cutoffFrequency, windowType));
         }
 
+        public static float[] MakeBandPassKernel(double sampleRate, int cutoff1, int cutoff2, WindowType windowType)
+        {
+            int count = FilterBuilder.CalculateFilterOrder(sampleRate, MathF.Abs(cutoff2 - cutoff1), 92);
+            return MakeBandPassKernel(sampleRate, count, cutoff1, cutoff2, windowType);
+        }
+
         public static float[] MakeBandPassKernel(double sampleRate, int filterOrder, int cutoff1, int cutoff2, WindowType windowType)
         {
             var bw = (cutoff2 - cutoff1) / 2;
             var fshift = cutoff2 - bw;
-            var shiftRadians = 2 * Math.PI * fshift / sampleRate;
+            var shiftRadians = 2 * MathF.PI * fshift / sampleRate;
 
             var h = MakeLowPassKernel(sampleRate, filterOrder, bw, windowType);
 

@@ -1,4 +1,4 @@
-﻿using RomanPort.LibSDR.Framework.Components.FFT;
+﻿using RomanPort.LibSDR.Components.FFT;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -38,7 +38,7 @@ namespace RomanPort.LibSDR.UI
             }
         }
 
-        public void ConfigureFFT(FFTInterface spectrum, FFTInterface waterfall)
+        public void ConfigureFFT(IFftMutatorSource spectrum, IFftMutatorSource waterfall)
         {
             this.mainFft.SetFFT(spectrum);
             this.waterfall.SetFFT(waterfall);

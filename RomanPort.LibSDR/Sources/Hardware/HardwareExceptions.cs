@@ -12,6 +12,14 @@ namespace RomanPort.LibSDR.Sources.Hardware
         }
     }
 
+    public class HardwareNotYetReadyException : Exception
+    {
+        public HardwareNotYetReadyException() : base("The radio hardware is not ready yet. Are you changing settings before opening the radio?")
+        {
+
+        }
+    }
+
     public class HardwareLibraryNotFound : Exception
     {
         public HardwareLibraryNotFound(string name) : base($"The library \"{name}\" for accessing the radio hardware wasn't found. You'll have to obtain it yourself.")

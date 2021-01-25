@@ -8,11 +8,11 @@ using System.Threading;
 
 namespace RomanPort.LibSDR.Sources.Hardware.AirSpy
 {
-    public unsafe class AirSpySource : IHardwareSource, ISource
+    public unsafe class AirSpySource : IHardwareSource
     {
         public long CenterFrequency { get => device.CenterFrequency; set => device.CenterFrequency = (uint)value; }
         public bool AutoGainEnabled { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int ManualGainLevel { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int ManualGainLevel { get => device.LinearGain; set => device.LinearGain = (byte)value; }
         public float SampleRate
         {
             get => sampleRate;

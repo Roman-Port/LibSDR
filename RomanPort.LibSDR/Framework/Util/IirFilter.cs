@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RomanPort.LibSDR.Components;
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -32,48 +33,48 @@ namespace RomanPort.LibSDR.Framework.Util
         private float _y1;
         private float _y2;
 
-        public void Init(IirFilterType filterType, double frequency, double sampleRate, int qualityFactor)
+        public void Init(IirFilterType filterType, float frequency, float sampleRate, int qualityFactor)
         {
-            var w0 = 2.0 * Math.PI * frequency / sampleRate;
-            var alpha = Math.Sin(w0) / (2.0 * qualityFactor);
+            var w0 = 2.0f * MathF.PI * frequency / sampleRate;
+            var alpha = MathF.Sin(w0) / (2.0f * qualityFactor);
 
             switch (filterType)
             {
                 case IirFilterType.LowPass:
-                    _b0 = (float)((1.0 - Math.Cos(w0)) / 2.0);
-                    _b1 = (float)(1.0 - Math.Cos(w0));
-                    _b2 = (float)((1.0 - Math.Cos(w0)) / 2.0);
-                    _a0 = (float)(1.0 + alpha);
-                    _a1 = (float)(-2.0 * Math.Cos(w0));
-                    _a2 = (float)(1.0 - alpha);
+                    _b0 = (1.0f - MathF.Cos(w0)) / 2.0f;
+                    _b1 = 1.0f - MathF.Cos(w0);
+                    _b2 = (1.0f - MathF.Cos(w0)) / 2.0f;
+                    _a0 = 1.0f + alpha;
+                    _a1 = -2.0f * MathF.Cos(w0);
+                    _a2 = 1.0f - alpha;
                     break;
 
                 case IirFilterType.HighPass:
-                    _b0 = (float)((1.0 + Math.Cos(w0)) / 2.0);
-                    _b1 = (float)(-(1.0 + Math.Cos(w0)));
-                    _b2 = (float)((1.0 + Math.Cos(w0)) / 2.0);
-                    _a0 = (float)(1.0 + alpha);
-                    _a1 = (float)(-2.0 * Math.Cos(w0));
-                    _a2 = (float)(1.0 - alpha);
+                    _b0 = (1.0f + MathF.Cos(w0)) / 2.0f;
+                    _b1 = -(1.0f + MathF.Cos(w0));
+                    _b2 = (1.0f + MathF.Cos(w0)) / 2.0f;
+                    _a0 = 1.0f + alpha;
+                    _a1 = -2.0f * MathF.Cos(w0);
+                    _a2 = 1.0f - alpha;
                     break;
 
                 //case IirFilterType.BandPass:
                 default:
-                    _b0 = (float)(alpha);
+                    _b0 = alpha;
                     _b1 = 0.0f;
-                    _b2 = (float)(-alpha);
-                    _a0 = (float)(1.0 + alpha);
-                    _a1 = (float)(-2.0 * Math.Cos(w0));
-                    _a2 = (float)(1.0 - alpha);
+                    _b2 = -alpha;
+                    _a0 = 1.0f + alpha;
+                    _a1 = -2.0f * MathF.Cos(w0);
+                    _a2 = 1.0f - alpha;
                     break;
 
                 case IirFilterType.Notch:
                     _b0 = 1.0f;
-                    _b1 = (float)(-2.0 * Math.Cos(w0));
+                    _b1 = -2.0f * MathF.Cos(w0);
                     _b2 = 1.0f;
-                    _a0 = (float)(1.0 + alpha);
-                    _a1 = (float)(-2.0 * Math.Cos(w0));
-                    _a2 = (float)(1.0 - alpha);
+                    _a0 = 1.0f + alpha;
+                    _a1 = -2.0f * MathF.Cos(w0);
+                    _a2 = 1.0f - alpha;
                     break;
             }
 
