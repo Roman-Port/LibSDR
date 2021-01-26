@@ -4,7 +4,7 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Components.Filters.Builders
 {
-    public class BandPassFilterBuilder : FilterBuilderBase
+    public class BandPassFilterBuilder : FilterPassBuilderBase
     {
         public BandPassFilterBuilder(float sampleRate, int lowCutoffFreq, int highCutoffFreq) : base(sampleRate)
         {
@@ -18,7 +18,7 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
         public override float[] BuildFilter()
         {
             float[] taps = new float[TapCount];
-            float[] window = FilterWindowUtil.MakeWindow(Window, TapCount);
+            float[] window = WindowUtil.MakeWindow(Window, TapCount);
 
             int M = (TapCount - 1) / 2;
             float fwT0 = 2 * MathF.PI * LowCutoffFreq / SampleRate;

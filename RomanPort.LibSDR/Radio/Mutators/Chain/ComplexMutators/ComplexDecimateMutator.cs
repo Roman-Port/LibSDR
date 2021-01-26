@@ -1,8 +1,9 @@
-﻿using RomanPort.LibSDR.Framework;
-using RomanPort.LibSDR.Components.Filters;
+﻿using RomanPort.LibSDR.Components.Filters;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using RomanPort.LibSDR.Components;
+using RomanPort.LibSDR.Components.Filters.CIC;
 
 namespace RomanPort.LibSDR.Radio.Mutators.Chain.ComplexMutators
 {

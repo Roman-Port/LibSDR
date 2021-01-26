@@ -1,5 +1,4 @@
-﻿using RomanPort.LibSDR.Framework;
-using RomanPort.LibSDR.Framework.Util;
+﻿using RomanPort.LibSDR.Components;
 using RomanPort.LibSDR.Radio.Framework;
 using System;
 using System.Collections.Generic;

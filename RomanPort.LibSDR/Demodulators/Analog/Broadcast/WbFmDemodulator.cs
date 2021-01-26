@@ -1,8 +1,5 @@
-﻿using RomanPort.LibSDR.Framework;
-using RomanPort.LibSDR.Components.Digital.RDS;
-using RomanPort.LibSDR.Components.FFT.Processors;
+﻿using RomanPort.LibSDR.Components.Digital.RDS;
 using RomanPort.LibSDR.Components.Filters;
-using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -11,6 +8,10 @@ using RomanPort.LibSDR.Components.Filters.Builders;
 using RomanPort.LibSDR.Components.Analog.Primitive;
 using RomanPort.LibSDR.Components.Decimators;
 using RomanPort.LibSDR.Components;
+using RomanPort.LibSDR.Components.Misc;
+using RomanPort.LibSDR.Components.Filters.IIR;
+using RomanPort.LibSDR.Components.General;
+using RomanPort.LibSDR.Components.Filters.FIR;
 
 namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
 {
@@ -26,9 +27,10 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
         public WbFmDemodulator()
         {
             //Create various bits
+            snr = new SnrCalculator();
             fm = new FmDemodulator();
             rdsDemodulator = new RDSDecoder();
-            stereoPilotFilter = new IirFilter();
+            stereoPilotFilter = new FloatIirFilter();
 
             //Create stereo pilot
             stereoPilot = new Pll();
@@ -57,8 +59,9 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
         private FloatFirFilter channelBFilter;
 
         //Misc
+        private SnrCalculator snr;
         private FmDemodulator fm;
-        private IirFilter stereoPilotFilter;
+        private FloatIirFilter stereoPilotFilter;
         private Pll stereoPilot;
         
         private float deemphasisAlpha;
@@ -146,6 +149,9 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
 
             //Emit MPX
             OnMpxSamplesEmitted?.Invoke(mpx, count);
+
+            //Add MPX to SNR calculator
+            snr.AddSamples(mpx, count);
 
             //Process RDS
             if (rdsEnabled)
@@ -253,6 +259,16 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
                 deemphasisAvgR += deemphasisAlpha * (right[i] - deemphasisAvgR);
                 right[i] = deemphasisAvgR;
             }
+        }
+
+        public SnrReading ReadAverageSnr()
+        {
+            return snr.CalculateAverageSnr();
+        }
+
+        public SnrReading ReadInstantSnr()
+        {
+            return snr.CalculateInstantSnr();
         }
     }
 }

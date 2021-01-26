@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using RomanPort.LibSDR.Framework;
 
 namespace RomanPort.LibSDR.Components.Digital
 {

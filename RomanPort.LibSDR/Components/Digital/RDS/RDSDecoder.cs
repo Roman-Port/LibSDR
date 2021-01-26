@@ -1,9 +1,10 @@
 ﻿using RomanPort.LibSDR.Components.Decimators;
 using RomanPort.LibSDR.Components.Filters;
 using RomanPort.LibSDR.Components.Filters.Builders;
+using RomanPort.LibSDR.Components.Filters.FIR;
+using RomanPort.LibSDR.Components.Filters.IIR;
+using RomanPort.LibSDR.Components.General;
 using RomanPort.LibSDR.Components.IO;
-using RomanPort.LibSDR.Framework;
-using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -65,7 +66,7 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
         private RDSBitDecoder bitDecoder;
         private Pll pll;
         private FloatFirFilter matchedFilter;
-        private IirFilter syncFilter;
+        private FloatIirFilter syncFilter;
 
         private float lastSync;
         private float lastData;
@@ -103,10 +104,10 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
             pll.LockThreshold = 3.2f;
 
             var matchedFilterLength = (int)(decimatedSampleRate / RDS_BIT_RATE) | 1;
-            var coefficients = FilterBuilder.MakeSin(decimatedSampleRate, RDS_BIT_RATE, matchedFilterLength);
+            var coefficients = new SinFilterBuilder(decimatedSampleRate, RDS_BIT_RATE, matchedFilterLength);
             matchedFilter = new FloatFirFilter(coefficients);
 
-            syncFilter = new IirFilter();
+            syncFilter = new FloatIirFilter();
             syncFilter.Init(IirFilterType.BandPass, RDS_BIT_RATE, decimatedSampleRate, 500);
         }
 

@@ -1,6 +1,4 @@
-﻿using RomanPort.LibSDR.Framework;
-using RomanPort.LibSDR.Components.IO.WAV;
-using RomanPort.LibSDR.Framework.Util;
+﻿using RomanPort.LibSDR.Components.IO.WAV;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using RomanPort.LibSDR.Components.IO;
+using RomanPort.LibSDR.Components;
 
 namespace RomanPort.LibSDR.Sources.Misc
 {

@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "RomanPort.SDRTools.SpectrumVideoProducer": {
-      "commandName": "Project",
-      "commandLineArgs": "--input \"C:/Users/Roman/Desktop/EAS 11-4-2020/station_iq/KXXR-FM.wav\" --output E:\\\\test.mp4 --spectrum-height 400 --waterfall-height 1200 --min-db -80 --fft-bins 1024 --averaging 40 --offset-db 10"
-    }
-  }
-}

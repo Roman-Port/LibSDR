@@ -1,11 +1,9 @@
-﻿using RomanPort.LibSDR.Framework.Util;
-using RomanPort.LibSDR.Sources;
+﻿using RomanPort.LibSDR.Sources;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using RomanPort.LibSDR.Framework;
 
 namespace RomanPort.LibSDR.Components.IO.WAV
 {

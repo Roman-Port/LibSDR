@@ -1,9 +1,9 @@
-﻿using RomanPort.LibSDR.Components.Filters;
+﻿using RomanPort.LibSDR.Components.Filters.FIR;
 using RomanPort.LibSDR.Components.Filters.Builders;
-using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using RomanPort.LibSDR.Components.Filters;
 
 namespace RomanPort.LibSDR.Components.Decimators
 {

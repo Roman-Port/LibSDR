@@ -1,12 +1,11 @@
 ﻿using RomanPort.LibSDR.Demodulators;
-using RomanPort.LibSDR.Framework;
 using RomanPort.LibSDR.Components.Decimators;
 using RomanPort.LibSDR.Components.Resamplers.Arbitrary;
-using RomanPort.LibSDR.Framework.Util;
 using RomanPort.LibSDR.Radio.Framework;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using RomanPort.LibSDR.Components;
 
 namespace RomanPort.LibSDR.Radio.Modules
 {

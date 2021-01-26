@@ -1,4 +1,5 @@
-﻿using RomanPort.LibSDR.Framework;
+﻿using RomanPort.LibSDR.Components;
+using RomanPort.LibSDR.Components.Misc;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -17,5 +18,8 @@ namespace RomanPort.LibSDR.Demodulators
         float Configure(int bufferSize, float sampleRate, float targetOutputRate);
         int Demodulate(Complex* iq, float* audio, int count);
         int DemodulateStereo(Complex* iq, float* left, float* right, int count);
+
+        SnrReading ReadAverageSnr();
+        SnrReading ReadInstantSnr();
     }
 }

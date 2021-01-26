@@ -1,6 +1,4 @@
 ﻿using RomanPort.LibSDR.Components.Filters;
-using RomanPort.LibSDR.Framework;
-using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -68,7 +66,7 @@ namespace RomanPort.LibSDR.Components.FFT.Generators
             fftWaitingCount = 0;
 
             //Create new window
-            FilterWindowUtil.MakeWindow(WindowType.BlackmanHarris7, fftBufferBins, fftWindowBufferPtr);
+            WindowUtil.MakeWindow(WindowType.BlackmanHarris7, fftBufferBins, fftWindowBufferPtr);
         }
 
         public void Dispose()
@@ -148,9 +146,9 @@ namespace RomanPort.LibSDR.Components.FFT.Generators
             //Calculate FFT
             var fftGain = 10.0f * MathF.Log10(fftBufferBins / 2);
             var compensation = 24.0f - fftGain + fftOffset;
-            Fourier.ApplyFFTWindow(fftProcessingBufferPtr, fftWindowBufferPtr, fftBufferBins);
-            Fourier.ForwardTransform(fftProcessingBufferPtr, fftBufferBins);
-            Fourier.SpectrumPower(fftProcessingBufferPtr, fftPowerBufferPtr, fftBufferBins, compensation);
+            FourierUtil.ApplyFFTWindow(fftProcessingBufferPtr, fftWindowBufferPtr, fftBufferBins);
+            FourierUtil.ForwardTransform(fftProcessingBufferPtr, fftBufferBins);
+            FourierUtil.SpectrumPower(fftProcessingBufferPtr, fftPowerBufferPtr, fftBufferBins, compensation);
 
             //Return pointer to the last part of the buffer
             return fftPowerBufferPtr + (fftBufferBins - FftBins);
