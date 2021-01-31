@@ -12,6 +12,7 @@ using RomanPort.LibSDR.Components.Misc;
 using RomanPort.LibSDR.Components.Filters.IIR;
 using RomanPort.LibSDR.Components.General;
 using RomanPort.LibSDR.Components.Filters.FIR;
+using RomanPort.LibSDR.Components.Analog;
 
 namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
 {
@@ -28,9 +29,12 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
         {
             //Create various bits
             snr = new SnrCalculator();
-            fm = new FmDemodulator();
+            fm = new FmBasebandDemodulator();
             rdsDemodulator = new RDSDecoder();
             stereoPilotFilter = new FloatIirFilter();
+            deemphasisL = new DeemphasisProcessor();
+            deemphasisR = new DeemphasisProcessor();
+            DeemphasisTime = 75f; //Configured for America
 
             //Create stereo pilot
             stereoPilot = new Pll();
@@ -47,10 +51,20 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
         private const int MIN_MPX_RATE = (58000 * 2) + MPX_TRANSITION_WIDTH; //Includes all the way up to RDS
         private const int MPX_TRANSITION_WIDTH = 8000;
 
-        public bool StereoDetected { get; private set; }
+        public bool StereoDetected { get => stereoPilot.IsLocked; }
         public event StereoDetectedEventArgs OnStereoDetected;
         public float MpxSampleRate { get => sampleRate; }
         public event MpxDataEmitted OnMpxSamplesEmitted;
+        public float DeemphasisTime
+        {
+            get => deemphasisTime;
+            set
+            {
+                deemphasisTime = value;
+                deemphasisL.Time = value;
+                deemphasisR.Time = value;
+            }
+        }
 
         //Rate of audio, also the output
         private int audioDecimationRate;
@@ -60,13 +74,12 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
 
         //Misc
         private SnrCalculator snr;
-        private FmDemodulator fm;
+        private FmBasebandDemodulator fm;
         private FloatIirFilter stereoPilotFilter;
         private Pll stereoPilot;
-        
-        private float deemphasisAlpha;
-        private float deemphasisAvgL;
-        private float deemphasisAvgR;
+        private DeemphasisProcessor deemphasisL;
+        private DeemphasisProcessor deemphasisR;
+        private float deemphasisTime = 75;
         private RDSDecoder rdsDemodulator;
         private bool rdsEnabled;
         private float sampleRate;
@@ -120,9 +133,8 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
             rdsDemodulator.Configure(sampleRate);
 
             //Configure Deemphasis
-            deemphasisAlpha = 1.0f - MathF.Exp(-1.0f / (audioSampleRate * (50f * 1e-6f)));
-            deemphasisAvgL = 0;
-            deemphasisAvgR = 0;
+            deemphasisL.SampleRate = audioSampleRate;
+            deemphasisR.SampleRate = audioSampleRate;
 
             return audioSampleRate;
         }
@@ -157,60 +169,29 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
             if (rdsEnabled)
                 rdsDemodulator.Process(mpx, count);
 
-            //Process audio
+            //If audio is disabled, abort now
             if (!audioEnabled)
                 return count;
-            if (audioStereoEnabled)
-                return ProcessAudioStereo(left, right, count);
-            else
-                return ProcessAudioMono(left, count);
-        }
 
-        private int ProcessAudioMono(float* audio, int count)
-        {
             //Decimate and filter L+R
-            Utils.Memcpy(audio, mpx, count * sizeof(float));
-            int audioLength = channelAFilter.Process(audio, count);
+            int audioLength = channelAFilter.Process(mpx, left, count);
 
             //Demodulate L - R
+            bool hadStereo = StereoDetected;
             for (var i = 0; i < count; i++)
             {
                 var pilot = stereoPilotFilter.Process(mpx[i]);
                 stereoPilot.Process(pilot);
+                if(audioStereoEnabled)
+                    right[i] = mpx[i] * Trig.Sin(stereoPilot.AdjustedPhase * 2.0f);
             }
 
             //Send events if mono/stereo status changed
-            if (StereoDetected != stereoPilot.IsLocked)
-                OnStereoDetected?.Invoke(stereoPilot.IsLocked);
-            StereoDetected = stereoPilot.IsLocked;
-
-            //Do preemp
-            ProcessDeemphasisMono(audio, audioLength);
-
-            return audioLength;
-        }
-
-        private int ProcessAudioStereo(float* left, float* right, int count)
-        {
-            //Decimate and filter L+R
-            Utils.Memcpy(left, mpx, count * sizeof(float));
-            int audioLength = channelAFilter.Process(left, count);
-
-            //Demodulate L - R
-            for (var i = 0; i < count; i++)
-            {
-                var pilot = stereoPilotFilter.Process(mpx[i]);
-                stereoPilot.Process(pilot);
-                right[i] = mpx[i] * Trig.Sin(stereoPilot.AdjustedPhase * 2.0f);
-            }
-
-            //Send events if mono/stereo status changed
-            if (StereoDetected != stereoPilot.IsLocked)
-                OnStereoDetected?.Invoke(stereoPilot.IsLocked);
-            StereoDetected = stereoPilot.IsLocked;
+            if (StereoDetected != hadStereo)
+                OnStereoDetected?.Invoke(StereoDetected);
 
             //Switch depending on the mode
-            if(StereoDetected)
+            if (StereoDetected && audioStereoEnabled) //Stereo detected and stereo requested
             {
                 //Decimate and filter L-R
                 channelBFilter.Process(right, count);
@@ -225,40 +206,24 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
                 }
 
                 //Process deemp
-                ProcessDeemphasisStereo(left, right, audioLength);
-            } else
+                deemphasisL.Process(left, audioLength);
+                deemphasisR.Process(right, audioLength);
+            }
+            else if (audioStereoEnabled) //No stereo enabled, but stereo is requested
             {
                 //Process deemp
-                ProcessDeemphasisMono(left, audioLength);
+                deemphasisL.Process(left, audioLength);
 
                 //Copy to the other channel
                 Utils.Memcpy(right, left, audioLength * sizeof(float));
             }
+            else //Stereo not enabled
+            {
+                //Process deemp
+                deemphasisL.Process(left, audioLength);
+            }
 
             return audioLength;
-        }
-
-        private void ProcessDeemphasisMono(float* audio, int audioLength)
-        {
-            for (var i = 0; i < audioLength; i++)
-            {
-                deemphasisAvgL += deemphasisAlpha * (audio[i] - deemphasisAvgL);
-                audio[i] = deemphasisAvgL;
-            }
-        }
-
-        private void ProcessDeemphasisStereo(float* left, float* right, int audioLength)
-        {
-            for (var i = 0; i < audioLength; i++)
-            {
-                //Left
-                deemphasisAvgL += deemphasisAlpha * (left[i] - deemphasisAvgL);
-                left[i] = deemphasisAvgL;
-
-                //Right
-                deemphasisAvgR += deemphasisAlpha * (right[i] - deemphasisAvgR);
-                right[i] = deemphasisAvgR;
-            }
         }
 
         public SnrReading ReadAverageSnr()

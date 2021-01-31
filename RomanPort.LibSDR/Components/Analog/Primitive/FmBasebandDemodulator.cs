@@ -4,9 +4,9 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Components.Analog.Primitive
 {
-    public class FmDemodulator
+    public class FmBasebandDemodulator
     {
-        public FmDemodulator(float fmDeviation = DEVIATION_BROADCAST)
+        public FmBasebandDemodulator(float fmDeviation = DEVIATION_BROADCAST)
         {
             if (fmDeviation <= 0)
                 throw new Exception("FmDeviation must be greater than zero!");

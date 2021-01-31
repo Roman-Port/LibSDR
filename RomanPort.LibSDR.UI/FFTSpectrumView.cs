@@ -9,8 +9,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
-using RomanPort.LibSDR.Framework.Util;
 using RomanPort.LibSDR.UI.Framework;
+using RomanPort.LibSDR.Components;
 
 namespace RomanPort.LibSDR.UI
 {

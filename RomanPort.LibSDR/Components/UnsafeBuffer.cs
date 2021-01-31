@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -10,6 +11,7 @@ namespace RomanPort.LibSDR.Components
         private readonly GCHandle handle;
         private readonly void* ptr;
         private readonly int length;
+        private readonly int bufferAlignmentOffset;
         private readonly int sizeOfElement;
 
         public readonly byte[] buffer;
@@ -19,18 +21,24 @@ namespace RomanPort.LibSDR.Components
             //Set
             this.length = length;
             this.sizeOfElement = sizeOfElement;
-            
+            this.bufferAlignmentOffset = 16;
+
             //Create buffer
-            buffer = new byte[length * sizeOfElement + 16];
+            buffer = new byte[length * sizeOfElement + bufferAlignmentOffset];
 
             //Get handle and aligned pointer
             handle = GCHandle.Alloc(this.buffer, GCHandleType.Pinned);
-            ptr = (void*)(((long)handle.AddrOfPinnedObject() + 15) & ~15);
+            ptr = (void*)(((long)handle.AddrOfPinnedObject() + (bufferAlignmentOffset - 1)) & ~(bufferAlignmentOffset - 1));
         }
 
         ~UnsafeBuffer()
         {
             Dispose();
+        }
+
+        public void CopyToStream(Stream stream, int byteCount)
+        {
+            stream.Write(buffer, bufferAlignmentOffset, byteCount);
         }
 
         public void Dispose()

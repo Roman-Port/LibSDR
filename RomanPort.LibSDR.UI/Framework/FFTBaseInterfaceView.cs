@@ -1,6 +1,5 @@
 ﻿using RomanPort.LibSDR.Components.FFT;
 using RomanPort.LibSDR.Components.FFT.Mutators;
-using RomanPort.LibSDR.Framework.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;

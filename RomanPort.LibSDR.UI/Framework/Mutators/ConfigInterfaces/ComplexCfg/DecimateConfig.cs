@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using RomanPort.LibSDR.Framework;
+using RomanPort.LibSDR.Components;
 using RomanPort.LibSDR.Radio.Mutators;
 using RomanPort.LibSDR.Radio.Mutators.Chain.ComplexMutators;
 

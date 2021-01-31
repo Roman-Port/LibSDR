@@ -113,22 +113,10 @@ namespace RomanPort.LibSDR.Components.FFT.Generators
             }
         }
 
-        private bool blockSkipAveraging = true;
-
         private void ProcessBlock()
         {
             //Samples in fftWaitingBufferPtr
-            if(blockSkipAveraging)
-            {
-                //Just copy
-                Utils.Memcpy(fftBufferPtr, fftWaitingBufferPtr, fftBufferBins * sizeof(Complex));
-                blockSkipAveraging = false;
-            } else
-            {
-                //Average all
-                for (int i = 0; i < fftBufferBins; i++)
-                    fftBufferPtr[i] = (fftBufferPtr[i] + fftWaitingBufferPtr[i]) / 2;
-            }
+            Utils.Memcpy(fftBufferPtr, fftWaitingBufferPtr, fftBufferBins * sizeof(Complex));
 
             //Reset
             fftWaitingCount = 0;
