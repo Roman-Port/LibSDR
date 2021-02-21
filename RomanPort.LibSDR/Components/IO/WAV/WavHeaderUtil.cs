@@ -37,6 +37,41 @@ namespace RomanPort.LibSDR.Components.IO.WAV
             return buffer;
         }
 
+        public static bool ParseWavHeader(byte[] header, out WavFileInfo info)
+        {
+            //Parse
+            int pos = 0;
+            string fileTag = ReadWavTag(header, ref pos);
+            int fileLen = ReadWavInt32(header, ref pos);
+            string wavTag = ReadWavTag(header, ref pos);
+            string fmtTag = ReadWavTag(header, ref pos);
+            ReadWavInt32(header, ref pos); //Unknown, 16
+            short formatTag = ReadWavInt16(header, ref pos);
+            short channels = ReadWavInt16(header, ref pos);
+            int fileSampleRate = ReadWavInt32(header, ref pos);
+            int avgBytesPerSec = ReadWavInt32(header, ref pos);
+            short blockAlign = ReadWavInt16(header, ref pos);
+            short bitsPerSample = ReadWavInt16(header, ref pos);
+            string dataTag = ReadWavTag(header, ref pos);
+            int dataLen = ReadWavInt32(header, ref pos);
+
+            //Validate
+            if (fileTag != "RIFF" || wavTag != "WAVE" || fmtTag != "fmt " || dataTag != "data")
+            {
+                info = new WavFileInfo();
+                return false;
+            }
+
+            //Create
+            info = new WavFileInfo
+            {
+                bitsPerSample = bitsPerSample,
+                channels = channels,
+                sampleRate = fileSampleRate
+            };
+            return true;
+        }
+
         public static void UpdateLength(Stream s, int audioLength)
         {
             //Allocate
@@ -83,6 +118,27 @@ namespace RomanPort.LibSDR.Components.IO.WAV
         {
             Array.Copy(src, 0, data, offset, src.Length);
             offset += src.Length;
+        }
+
+        private static string ReadWavTag(byte[] header, ref int offset)
+        {
+            string v = Encoding.ASCII.GetString(header, offset, 4);
+            offset += 4;
+            return v;
+        }
+
+        private static int ReadWavInt32(byte[] header, ref int offset)
+        {
+            int v = BitConverter.ToInt32(header, offset);
+            offset += 4;
+            return v;
+        }
+
+        private static short ReadWavInt16(byte[] header, ref int offset)
+        {
+            short v = BitConverter.ToInt16(header, offset);
+            offset += 2;
+            return v;
         }
     }
 }

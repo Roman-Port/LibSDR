@@ -169,7 +169,7 @@ namespace RomanPort.LibSDR.Sources.Hardware.AirSpy
             AirSpyDevice ctx = (AirSpyDevice)gcHandle.Target;
 
             //Read parameters
-            Complex* samples = (Complex*)data->samples;
+            float* samples = (float*)data->samples;
             int count = data->sample_count;
             ulong dropped = data->dropped_samples;
 
@@ -177,8 +177,19 @@ namespace RomanPort.LibSDR.Sources.Hardware.AirSpy
             if (data->sample_type != airspy_sample_type.AIRSPY_SAMPLE_FLOAT32_IQ)
                 throw new Exception("Only Float32 IQ is supported currently.");
 
+            //Flip I and Q, as for some rason they appear to be incorrect?
+            float tmp;
+            float* flipSample = samples;
+            for(int i = 0; i<count; i++)
+            {
+                tmp = *flipSample;
+                *flipSample = flipSample[1];
+                flipSample[1] = tmp;
+                flipSample += 2;
+            }
+
             //Handle
-            ctx.OnSamplesAvailable?.Invoke(samples, count, dropped);
+            ctx.OnSamplesAvailable?.Invoke((Complex*)samples, count, dropped);
 
             //Return 0 to indicate a success
             return 0;

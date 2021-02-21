@@ -43,38 +43,45 @@ namespace RomanPort.LibSDR.Components.FFT.Mutators
             //Get pointer from source
             float* src = source.ProcessFFT(out int srcFftBins);
 
-            //Get the scaling factor
-            float scale = (float)srcFftBins / outputSize;
-
-            //Determine how to scale
-            if(scale == 1)
-            {
-                //That was easy. These are the same dimensions
-                fftBins = srcFftBins;
-                return src;
-            } else if (scale > 1)
-            {
-                //More input bins than output bins. This is the most common one
-                int lastIndex = -1;
-                for(int i = 0; i<srcFftBins; i++)
-                {
-                    int outIndex = (int)(i / scale);
-                    if (lastIndex < outIndex)
-                        bufferPtr[outIndex] = src[i]; //This is the first one, so just set it to avoid using old data
-                    else
-                        bufferPtr[outIndex] = Math.Max(bufferPtr[outIndex], src[i]);
-                    lastIndex = outIndex;
-                }
-            } else
-            {
-                //More output bins than input bins. Interpolate
-                for (int i = 0; i < outputSize; i++)
-                    bufferPtr[i] = src[(int)(i * scale)];
-            }
+            //Apply
+            ResizeFFT(src, srcFftBins, bufferPtr, OutputSize);
 
             //Output
             fftBins = outputSize;
             return bufferPtr;
+        }
+
+        public static void ResizeFFT(float* input, int inputSize, float* output, int outputSize)
+        {
+            //Get the scaling factor
+            float scale = (float)inputSize / outputSize;
+
+            //Determine how to scale
+            if (scale == 1)
+            {
+                //That was easy. These are the same dimensions
+                Utils.Memcpy(output, input, outputSize * sizeof(float));
+            }
+            else if (scale > 1)
+            {
+                //More input bins than output bins. This is the most common one
+                int lastIndex = -1;
+                for (int i = 0; i < inputSize; i++)
+                {
+                    int outIndex = (int)(i / scale);
+                    if (lastIndex < outIndex)
+                        output[outIndex] = input[i]; //This is the first one, so just set it to avoid using old data
+                    else
+                        output[outIndex] = Math.Max(output[outIndex], input[i]);
+                    lastIndex = outIndex;
+                }
+            }
+            else
+            {
+                //More output bins than input bins. Interpolate
+                for (int i = 0; i < outputSize; i++)
+                    output[i] = input[(int)(i * scale)];
+            }
         }
     }
 }

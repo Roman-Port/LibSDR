@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RomanPort.LibSDR.Components.IO.RAW;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -6,37 +7,27 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Components.IO.WAV
 {
-    public unsafe class WavFileWriter : WavFile
+    public unsafe class WavFileWriter : WavFile, IDisposable
     {
-        protected int bufferSamplesSize;
+        private StreamSampleWriter writer;
 
-        private int[] WRITE_SAME_MULTS = { 2, 2 };
-        private int[] WRITE_DIFF_MULTS = { 1, 1 };
-        private int[] WRITE_SINGLE_MULTS = { 1 };
-
-        public WavFileWriter(string path, FileMode mode, int sampleRate, short channels, short bitsPerSample, int bufferSize) : this(new FileStream(path, mode), sampleRate, channels, bitsPerSample, bufferSize)
+        public WavFileWriter(string path, FileMode mode, int sampleRate, short channels, SampleFormat format, int bufferSize) : this(new FileStream(path, mode), sampleRate, channels, format, bufferSize)
         {
 
         }
 
-        public WavFileWriter(Stream underlyingStream, int sampleRate, short channels, short bitsPerSample, int bufferSize) : base(underlyingStream, channels * (bitsPerSample / 8) * bufferSize)
+        public WavFileWriter(Stream underlyingStream, int sampleRate, short channels, SampleFormat format, int bufferSize) : base(underlyingStream)
         {
+            //Create wrapper
+            writer = new StreamSampleWriter(underlyingStream, format, sampleRate, WavHeaderUtil.HEADER_LENGTH, channels, bufferSize);
+
             //Create info
             info = new WavFileInfo
             {
-                bitsPerSample = bitsPerSample,
+                bitsPerSample = writer.BitsPerSample,
                 channels = channels,
                 sampleRate = sampleRate
             };
-
-            //Calculate buffer size
-            switch (BitsPerSample)
-            {
-                case 32: bufferSamplesSize = bufferSizeBytes / channels / sizeof(float); break;
-                case 16: bufferSamplesSize = bufferSizeBytes / channels / sizeof(short); break;
-                case 8: bufferSamplesSize = bufferSizeBytes / channels / sizeof(byte); break;
-                default: throw new Exception("Only PCM8, PCM16, and Float32 bitsPerSample types are supported!");
-            }
 
             //Write header
             byte[] header = WavHeaderUtil.CreateHeader(info);
@@ -46,18 +37,12 @@ namespace RomanPort.LibSDR.Components.IO.WAV
 
         public void Write(Complex* ptr, int count)
         {
-            float* fPtr = (float*)ptr;
-            WriteChannels(count, WRITE_SAME_MULTS, fPtr, fPtr + 1);
-        }
-
-        public void Write(float* left, float* right, int count)
-        {
-            WriteChannels(count, WRITE_DIFF_MULTS, left, right);
+            writer.Write(ptr, count);
         }
         
         public void Write(float* ptr, int count)
         {
-            WriteChannels(count, WRITE_SINGLE_MULTS, ptr);
+            writer.Write(ptr, count);
         }
 
         public void FinalizeFile()
@@ -67,65 +52,9 @@ namespace RomanPort.LibSDR.Components.IO.WAV
             underlyingStream.Position = pos;
         }
 
-        private void WriteChannels(int countPerChannel, int[] perChannelIndexMultiplier, params float*[] channels)
+        public void Dispose()
         {
-            int offset = 0;
-            while(countPerChannel > 0)
-            {
-                //Calculate transferrable
-                int block = Math.Min(countPerChannel, bufferSamplesSize);
-
-                //Copy to buffer
-                int bytesCopied;
-                switch(BitsPerSample)
-                {
-                    case 32:
-                        float* fBuf = bufferPtrFloat;
-                        for (int i = 0; i < countPerChannel; i++)
-                        {
-                            for (int c = 0; c < channels.Length; c++)
-                            {
-                                *fBuf = channels[c][(i + offset) * perChannelIndexMultiplier[c]];
-                                fBuf++;
-                            }
-                        }
-                        bytesCopied = countPerChannel * channels.Length * sizeof(float);
-                        break;
-                    case 16:
-                        short* sBuf = bufferPtrShort;
-                        for (int i = 0; i < countPerChannel; i++)
-                        {
-                            for (int c = 0; c < channels.Length; c++)
-                            {
-                                *sBuf = (short)(channels[c][(i + offset) * perChannelIndexMultiplier[c]] * short.MaxValue);
-                                sBuf++;
-                            }
-                        }
-                        bytesCopied = countPerChannel * channels.Length * sizeof(short);
-                        break;
-                    case 8:
-                        byte* bBuf = bufferPtrByte;
-                        for (int i = 0; i < countPerChannel; i++)
-                        {
-                            for (int c = 0; c < channels.Length; c++)
-                            {
-                                *bBuf = (byte)((channels[c][(i + offset) * perChannelIndexMultiplier[c]] * 127.5f) + 127.5f);
-                                bBuf++;
-                            }
-                        }
-                        bytesCopied = countPerChannel * channels.Length * sizeof(byte);
-                        break;
-                    default:
-                        throw new Exception("Only PCM8, PCM16, and Float32 bitsPerSample types are supported!");
-                }
-
-                //Write to stream
-                underlyingStream.Write(buffer, 0, bytesCopied);
-
-                //Update state
-                offset += block;
-                countPerChannel -= block;
-            }
+            writer.Dispose();
         }
     }
 }

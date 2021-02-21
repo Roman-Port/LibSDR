@@ -37,6 +37,10 @@ namespace RomanPort.LibSDR.Components.Analog.Primitive
 
         public unsafe int Demodulate(Complex* iq, float* audio, int count)
         {
+            //Check
+            if (gain == 0)
+                throw new Exception("You must call Configure before use!");
+            
             //Process
             for (var i = 0; i < count; i++)
             {

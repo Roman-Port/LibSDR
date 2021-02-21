@@ -45,60 +45,28 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FFTDisplay.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="FFTDisplay.Designer.cs">
-      <DependentUpon>FFTDisplay.cs</DependentUpon>
-    </Compile>
-    <Compile Include="FFTSpectrumView.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="FFTSpectrumView.Designer.cs">
-      <DependentUpon>FFTSpectrumView.cs</DependentUpon>
-    </Compile>
-    <Compile Include="FFTWaterfallView.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="FFTWaterfallView.Designer.cs">
-      <DependentUpon>FFTWaterfallView.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Framework\FFTBaseInterfaceView.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Framework\Mutators\BaseMutatorAddDialog.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Framework\Mutators\BaseMutatorAddDialog.Designer.cs">
-      <DependentUpon>BaseMutatorAddDialog.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Framework\Mutators\BaseMutatorList.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Framework\Mutators\BaseMutatorList.Designer.cs">
-      <DependentUpon>BaseMutatorList.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Framework\Mutators\BaseMutatorListItem.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Framework\Mutators\BaseMutatorListItem.Designer.cs">
-      <DependentUpon>BaseMutatorListItem.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Framework\Mutators\ConfigInterfaces\ComplexCfg\DecimateConfig.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Framework\Mutators\ConfigInterfaces\ComplexCfg\DecimateConfig.Designer.cs">
-      <DependentUpon>DecimateConfig.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Framework\Mutators\IMutatorInterfaceConfig.cs" />
+    <Compile Include="FFTViewWrapper.cs" />
     <Compile Include="Framework\RawDrawableView.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="Framework\RawDrawableView.Designer.cs">
+      <DependentUpon>RawDrawableView.cs</DependentUpon>
+    </Compile>
     <Compile Include="Framework\UnsafeColor.cs" />
-    <Compile Include="MutatorListComplex.cs">
+    <Compile Include="IPowerView.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SpectrumView.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SpectrumWaterfallView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="SpectrumWaterfallView.Designer.cs">
+      <DependentUpon>SpectrumWaterfallView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="WaterfallView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RomanPort.LibSDR\RomanPort.LibSDR.csproj">
@@ -107,23 +75,11 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="FFTDisplay.resx">
-      <DependentUpon>FFTDisplay.cs</DependentUpon>
+    <EmbeddedResource Include="Framework\RawDrawableView.resx">
+      <DependentUpon>RawDrawableView.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="FFTSpectrumView.resx">
-      <DependentUpon>FFTSpectrumView.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Framework\Mutators\BaseMutatorAddDialog.resx">
-      <DependentUpon>BaseMutatorAddDialog.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Framework\Mutators\BaseMutatorList.resx">
-      <DependentUpon>BaseMutatorList.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Framework\Mutators\BaseMutatorListItem.resx">
-      <DependentUpon>BaseMutatorListItem.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Framework\Mutators\ConfigInterfaces\ComplexCfg\DecimateConfig.resx">
-      <DependentUpon>DecimateConfig.cs</DependentUpon>
+    <EmbeddedResource Include="SpectrumWaterfallView.resx">
+      <DependentUpon>SpectrumWaterfallView.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

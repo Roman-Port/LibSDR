@@ -112,12 +112,12 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
             //Prepare Progam Serivce name
             psComplete = false;
             psName = "        ";
-            psBuffer = new char[8];
+            psBuffer = CreateEmptyBuffer(8);
 
             //Prepare Radio Text
             rtComplete = false;
             rtText = "";
-            rtBuffer = new char[64];
+            rtBuffer = CreateEmptyBuffer(64);
         }
 
         public void ProcessFrameBigEndian(ushort inGroupA, ushort inGroupB, ushort inGroupC, ushort inGroupD)
@@ -482,6 +482,14 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
             return false;
         }
 
+        private static char[] CreateEmptyBuffer(int len)
+        {
+            char[] buffer = new char[len];
+            for (int i = 0; i < buffer.Length; i++)
+                buffer[i] = ' ';
+            return buffer;
+        }
+
         /// <summary>
         /// Clears out information, but will not stop events. This should be called when a new station is tuned to
         /// </summary>
@@ -492,8 +500,8 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
             psComplete = false;
             rtComplete = false;
             timeComplete = false;
-            psBuffer = new char[8];
-            rtBuffer = new char[64];
+            psBuffer = CreateEmptyBuffer(8);
+            rtBuffer = CreateEmptyBuffer(64);
             OnReset?.Invoke(this);
         }
     }

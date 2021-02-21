@@ -51,7 +51,18 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
         private const int MIN_MPX_RATE = (58000 * 2) + MPX_TRANSITION_WIDTH; //Includes all the way up to RDS
         private const int MPX_TRANSITION_WIDTH = 8000;
 
-        public bool StereoDetected { get => stereoPilot.IsLocked; }
+        public bool StereoEnabled { get; set; } = true;
+        public bool StereoDetected
+        {
+            get => stereoDetected;
+            private set
+            {
+                if (value == stereoDetected)
+                    return;
+                stereoDetected = value;
+                OnStereoDetected?.Invoke(value);
+            }
+        }
         public event StereoDetectedEventArgs OnStereoDetected;
         public float MpxSampleRate { get => sampleRate; }
         public event MpxDataEmitted OnMpxSamplesEmitted;
@@ -73,6 +84,7 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
         private FloatFirFilter channelBFilter;
 
         //Misc
+        private bool stereoDetected;
         private SnrCalculator snr;
         private FmBasebandDemodulator fm;
         private FloatIirFilter stereoPilotFilter;
@@ -112,8 +124,8 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
             //Calculate the audio decimation rate
             audioDecimationRate = DecimationUtil.CalculateDecimationRate(sampleRate, targetOutputRate, out audioSampleRate);
             var coefficients = new BandPassFilterBuilder(sampleRate, MIN_BC_AUDIO_FREQ, MAX_BC_AUDIO_FREQ)
-                .SetAutomaticTapCount(STEREO_PILOT_FREQ - MAX_BC_AUDIO_FREQ, 40)
-                .SetWindow(WindowType.Hamming)
+                .SetAutomaticTapCount(STEREO_PILOT_FREQ - MAX_BC_AUDIO_FREQ, GetQualityVariable(20, 80))
+                .SetWindow(WindowType.BlackmanHarris7)
                 .BuildFilter();
             channelAFilter = new FloatFirFilter(coefficients, audioDecimationRate);
             channelBFilter = new FloatFirFilter(coefficients, audioDecimationRate);
@@ -127,7 +139,7 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
 
             //Configure stereo
             stereoPilot.SampleRate = sampleRate;
-            stereoPilotFilter.Init(IirFilterType.BandPass, STEREO_PILOT_FREQ, sampleRate, 200);
+            stereoPilotFilter.Init(IirFilterType.BandPass, STEREO_PILOT_FREQ, sampleRate, GetQualityVariable(200, 1800));
 
             //Configure RDS
             rdsDemodulator.Configure(sampleRate);
@@ -146,7 +158,15 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
 
         public int DemodulateStereo(Complex* iq, float* left, float* right, int count)
         {
-            return DemodulateBase(iq, left, right, count, true, true);
+            if (StereoEnabled)
+            {
+                return DemodulateBase(iq, left, right, count, true, true);
+            } else
+            {
+                count = Demodulate(iq, left, count);
+                Utils.Memcpy(right, left, count * sizeof(float));
+                return count;
+            }
         }
 
         public void DemodulateRDS(Complex* iq, int count)
@@ -177,7 +197,6 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
             int audioLength = channelAFilter.Process(mpx, left, count);
 
             //Demodulate L - R
-            bool hadStereo = StereoDetected;
             for (var i = 0; i < count; i++)
             {
                 var pilot = stereoPilotFilter.Process(mpx[i]);
@@ -186,9 +205,8 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
                     right[i] = mpx[i] * Trig.Sin(stereoPilot.AdjustedPhase * 2.0f);
             }
 
-            //Send events if mono/stereo status changed
-            if (StereoDetected != hadStereo)
-                OnStereoDetected?.Invoke(StereoDetected);
+            //Set
+            StereoDetected = stereoPilot.IsLocked;
 
             //Switch depending on the mode
             if (StereoDetected && audioStereoEnabled) //Stereo detected and stereo requested
@@ -234,6 +252,11 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
         public SnrReading ReadInstantSnr()
         {
             return snr.CalculateInstantSnr();
+        }
+
+        private T GetQualityVariable<T>(T fast, T quality)
+        {
+            return quality;
         }
     }
 }

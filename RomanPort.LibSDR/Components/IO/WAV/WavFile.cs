@@ -6,31 +6,14 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Components.IO.WAV
 {
-    public unsafe abstract class WavFile : IDisposable
+    public unsafe abstract class WavFile
     {
         protected WavFileInfo info;
         protected Stream underlyingStream;
-        protected bool disposed;
 
-        protected readonly int bufferSizeBytes;
-        protected byte[] buffer;
-        protected GCHandle bufferHandle;
-        protected byte* bufferPtrByte;
-        protected short* bufferPtrShort;
-        protected float* bufferPtrFloat;
-
-        public WavFile(Stream underlyingStream, int bufferSize)
+        public WavFile(Stream underlyingStream)
         {
-            //Set
             this.underlyingStream = underlyingStream;
-
-            //Open buffer
-            bufferSizeBytes = bufferSize;
-            buffer = new byte[bufferSize];
-            bufferHandle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
-            bufferPtrByte = (byte*)bufferHandle.AddrOfPinnedObject();
-            bufferPtrShort = (short*)bufferHandle.AddrOfPinnedObject();
-            bufferPtrFloat = (float*)bufferHandle.AddrOfPinnedObject();
         }
 
         public int Channels { get => info.channels; }
@@ -48,11 +31,18 @@ namespace RomanPort.LibSDR.Components.IO.WAV
             get => (double)PositionSamples / SampleRate;
             set => PositionSamples = (long)(value * SampleRate);
         }
-
-        public void Dispose()
+        public SampleFormat Format
         {
-            bufferHandle.Free();
-            disposed = true;
+            get
+            {
+                switch (BitsPerSample)
+                {
+                    case 8: return SampleFormat.Byte;
+                    case 16: return SampleFormat.Short16;
+                    case 32: return SampleFormat.Float32;
+                    default: throw new Exception("Unknown bits per sample!");
+                }
+            }
         }
     }
 }

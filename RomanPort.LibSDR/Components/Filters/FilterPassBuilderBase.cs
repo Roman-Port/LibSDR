@@ -51,7 +51,7 @@ namespace RomanPort.LibSDR.Components.Filters
             return this;
         }
 
-        public FilterPassBuilderBase SetWindow(WindowType window = WindowType.Hamming)
+        public FilterPassBuilderBase SetWindow(WindowType window = WindowType.BlackmanHarris7)
         {
             Window = window;
             return this;
