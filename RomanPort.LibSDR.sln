@@ -9,11 +9,19 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RomanPort.LibSDRTests", "Ro
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RomanPort.LibSDR.UI", "RomanPort.LibSDR.UI\RomanPort.LibSDR.UI.csproj", "{48DDE04C-1F7F-40B3-8A37-3CA5861AB44C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RomanPort.LibSDRExperiments", "RomanPort.LibSDRExperiments\RomanPort.LibSDRExperiments.csproj", "{5BD9B359-7B9B-43E1-92FC-D18BB06504A6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RomanPort.LibSDRExperiments", "RomanPort.LibSDRExperiments\RomanPort.LibSDRExperiments.csproj", "{5BD9B359-7B9B-43E1-92FC-D18BB06504A6}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RomanPort.LibSDR.NRSC5", "RomanPort.LibSDR.NRSC5\RomanPort.LibSDR.NRSC5.csproj", "{FF670DD9-8070-46CF-A9F2-2BDEA33B7CE0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RomanPort.LibSDR.Benchmarks", "RomanPort.LibSDR.Benchmarks\RomanPort.LibSDR.Benchmarks.csproj", "{2F15404B-5000-4863-A5D9-825B1B36BEB7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RomanPort.LibSDR.Hardware.AirSpy", "RomanPort.LibSDR.Hardware.AirSpy\RomanPort.LibSDR.Hardware.AirSpy.csproj", "{FF6DC919-EAFE-45EA-B994-428A553BCF88}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RomanPort.LibSDR.IO.USB.LibUSB", "RomanPort.LibSDR.IO.USB.LibUSB\RomanPort.LibSDR.IO.USB.LibUSB.csproj", "{73748D28-8E21-417B-B745-17C6DDD19724}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Utils", "Utils", "{CB7D2C40-6B44-4388-A4E0-1B3D1202BB7E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RomanPort.LibSDR.Utils.FmDemodulator", "RomanPort.LibSDR.Utils.FmDemodulator\RomanPort.LibSDR.Utils.FmDemodulator.csproj", "{7A4F5DB5-3573-4F02-B73F-4F9C5ECFCDBC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,9 +53,24 @@ Global
 		{2F15404B-5000-4863-A5D9-825B1B36BEB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2F15404B-5000-4863-A5D9-825B1B36BEB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2F15404B-5000-4863-A5D9-825B1B36BEB7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FF6DC919-EAFE-45EA-B994-428A553BCF88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF6DC919-EAFE-45EA-B994-428A553BCF88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF6DC919-EAFE-45EA-B994-428A553BCF88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF6DC919-EAFE-45EA-B994-428A553BCF88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73748D28-8E21-417B-B745-17C6DDD19724}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73748D28-8E21-417B-B745-17C6DDD19724}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73748D28-8E21-417B-B745-17C6DDD19724}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73748D28-8E21-417B-B745-17C6DDD19724}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A4F5DB5-3573-4F02-B73F-4F9C5ECFCDBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A4F5DB5-3573-4F02-B73F-4F9C5ECFCDBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A4F5DB5-3573-4F02-B73F-4F9C5ECFCDBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A4F5DB5-3573-4F02-B73F-4F9C5ECFCDBC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7A4F5DB5-3573-4F02-B73F-4F9C5ECFCDBC} = {CB7D2C40-6B44-4388-A4E0-1B3D1202BB7E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DE353814-972D-4BB0-A9AC-6A0FE65C6087}

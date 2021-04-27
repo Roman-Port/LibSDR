@@ -107,8 +107,7 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
             var coefficients = new SinFilterBuilder(decimatedSampleRate, RDS_BIT_RATE, matchedFilterLength);
             matchedFilter = new FloatFirFilter(coefficients);
 
-            syncFilter = new FloatIirFilter();
-            syncFilter.Init(IirFilterType.BandPass, RDS_BIT_RATE, decimatedSampleRate, 500);
+            syncFilter = new FloatIirFilter(IirFilterType.BandPass, RDS_BIT_RATE, decimatedSampleRate, 500);
         }
 
         /// <summary>

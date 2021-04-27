@@ -15,6 +15,8 @@ namespace RomanPort.LibSDR.Components.General
         private double phase;
         private double rotation;
 
+        public double Phase { get => phase; set => phase = value; }
+
         void Tick()
         {
             phase += rotation;
@@ -30,14 +32,33 @@ namespace RomanPort.LibSDR.Components.General
 
         public unsafe void Mix(Complex* ptr, int count)
         {
+            Mix(ptr, ptr, count);
+        }
+
+        public unsafe void Mix(Complex* input, Complex* output, int count)
+        {
             Complex temp;
-            for(int i = 0; i<count; i++)
+            for (int i = 0; i < count; i++)
             {
                 temp = new Complex(
                     (float)Math.Cos(phase),
                     (float)Math.Sin(phase)
                 );
-                ptr[i] *= temp;
+                output[i] = input[i] * temp;
+                Tick();
+            }
+        }
+
+        public unsafe void Mix(float* data, int count)
+        {
+            Mix(data, data, count);
+        }
+
+        public unsafe void Mix(float* input, float* output, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                output[i] = (input[i] * (float)Math.Cos(phase));
                 Tick();
             }
         }

@@ -9,7 +9,7 @@ namespace RomanPort.LibSDR.Components.IO.WAV
     {
         public const int HEADER_LENGTH = 44;
         
-        public static byte[] CreateHeader(WavFileInfo info)
+        public static byte[] CreateHeader(WavFileInfo info, int length = -1)
         {
             //Allocate
             byte[] buffer = new byte[HEADER_LENGTH];
@@ -21,7 +21,7 @@ namespace RomanPort.LibSDR.Components.IO.WAV
 
             //Write
             WriteTag(buffer, ref offset, "RIFF");
-            WriteSignedInt(buffer, ref offset, -1); //Length
+            WriteSignedInt(buffer, ref offset, length); //Length
             WriteTag(buffer, ref offset, "WAVE");
             WriteTag(buffer, ref offset, "fmt ");
             WriteSignedInt(buffer, ref offset, 16);
@@ -32,9 +32,16 @@ namespace RomanPort.LibSDR.Components.IO.WAV
             WriteSignedShort(buffer, ref offset, blockAlign);
             WriteSignedShort(buffer, ref offset, info.bitsPerSample);
             WriteTag(buffer, ref offset, "data");
-            WriteSignedInt(buffer, ref offset, -1); //Length
+            WriteSignedInt(buffer, ref offset, length); //Length
 
             return buffer;
+        }
+
+        public static bool ParseWavHeader(Stream s, out WavFileInfo info)
+        {
+            byte[] data = new byte[WavHeaderUtil.HEADER_LENGTH];
+            s.Read(data, 0, data.Length);
+            return ParseWavHeader(data, out info);
         }
 
         public static bool ParseWavHeader(byte[] header, out WavFileInfo info)

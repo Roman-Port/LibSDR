@@ -11,9 +11,9 @@ namespace RomanPort.LibSDR.Components
         private readonly GCHandle handle;
         private readonly void* ptr;
         private readonly int length;
-        private readonly int bufferAlignmentOffset;
         private readonly int sizeOfElement;
 
+        public readonly int bufferAlignmentOffset;
         public readonly byte[] buffer;
 
         private UnsafeBuffer(int length, int sizeOfElement)
@@ -36,9 +36,10 @@ namespace RomanPort.LibSDR.Components
             Dispose();
         }
 
-        public void CopyToStream(Stream stream, int byteCount)
+        public void CopyToStream(Stream stream, int byteCount, int blockSize = 2048)
         {
-            stream.Write(buffer, bufferAlignmentOffset, byteCount);
+            for(int offset = 0; offset < byteCount; offset += blockSize)
+                stream.Write(buffer, bufferAlignmentOffset + offset, Math.Min(blockSize, byteCount - offset));
         }
 
         public void Dispose()

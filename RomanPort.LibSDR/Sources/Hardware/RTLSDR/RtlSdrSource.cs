@@ -63,9 +63,10 @@ namespace RomanPort.LibSDR.Sources.Hardware.RTLSDR
                     throw new HardwareNotYetReadyException();
 
                 //Set on device
-                int opcode = NativeMethods.rtlsdr_set_center_freq(device, (uint)value);
+                /*int opcode = NativeMethods.rtlsdr_set_center_freq(device, (uint)value);
                 if (opcode != RTL_SUCCESS_OPCODE)
-                    throw new RtlDeviceErrorException(opcode);
+                    throw new RtlDeviceErrorException(opcode);*/
+                NativeMethods.rtlsdr_set_center_freq(device, (uint)value);
 
                 //Set locally
                 centerFreq = (uint)value;

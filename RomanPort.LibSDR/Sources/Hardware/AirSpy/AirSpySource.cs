@@ -22,6 +22,11 @@ namespace RomanPort.LibSDR.Sources.Hardware.AirSpy
                 OnSampleRateChanged?.Invoke(value);
             }
         }
+        public int DecimationStages
+        {
+            get => device.DecimationStages;
+            set => device.DecimationStages = value;
+        }
         public long TotalDroppedSamples { get => droppedSamples; }
 
         public event SamplesAvailableEventArgs OnSamplesAvailable;
@@ -61,7 +66,8 @@ namespace RomanPort.LibSDR.Sources.Hardware.AirSpy
             //Configure
             device.SampleType = airspy_sample_type.AIRSPY_SAMPLE_FLOAT32_IQ;
             device.OnSamplesAvailable += Device_OnSamplesAvailable;
-            SampleRate = initialRequestedSampleRate;
+            device.SampleRate = initialRequestedSampleRate;
+            SampleRate = device.DecimatedSampleRate;
         }
 
         private void Device_OnSamplesAvailable(Complex* samples, int count, ulong dropped)

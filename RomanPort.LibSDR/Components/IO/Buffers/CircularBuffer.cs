@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 
 namespace RomanPort.LibSDR.Components.IO.Buffers
 {
@@ -10,82 +11,66 @@ namespace RomanPort.LibSDR.Components.IO.Buffers
         private UnsafeBuffer buffer;
         private T* bufferPtr;
 
-        private int readIndex;
-        private int writeIndex;
-        private int itemsWaiting; //Items written that have not yet been read
+        private volatile int read;
+        private volatile int write;
 
         public CircularBuffer(int bufferElementCount)
         {
-            //Open buffer
-            bufferSize = bufferElementCount;
-            buffer = UnsafeBuffer.Create(bufferElementCount, sizeof(T));
+            bufferSize = bufferElementCount + 1;
+            buffer = UnsafeBuffer.Create(bufferElementCount + 1, sizeof(T));
             bufferPtr = (T*)buffer;
+        }
+
+        public bool IsEmpty { get => read == write; }
+        public bool IsFull { get => Free == 0; }
+        public int Waiting { get => (((write - read) % (bufferSize + 1)) + bufferSize) % bufferSize; }
+        public int Free { get => bufferSize - Waiting - 1; }
+
+
+        public bool WriteOne(T data, bool force = false)
+        {
+            //Check if full
+            if (IsFull)
+                return false;
+
+            //Write
+            bufferPtr[write] = data;
+
+            //Update state
+            write = (write + 1) % (bufferSize + 1);
+
+            return true;
+        }
+
+        public bool ReadOne(T* output)
+        {
+            //Check if empty
+            if (IsEmpty)
+                return false;
+
+            //Read
+            *output = bufferPtr[read];
+
+            //Update state
+            read = (read + 1) % (bufferSize + 1);
+
+            return true;
         }
 
         public int Write(T* data, int count, bool force = false)
         {
-            //Determine the MAX number of items we can write without overwriting data and then find the max we'll actually use
-            int maxBytesWritable;
-            if (force)
-                maxBytesWritable = count; //We're going to write everything, even if it overwrites data
-            else
-                maxBytesWritable = Math.Min(bufferSize - itemsWaiting, count); //Write just what is safe to write
-
-            //Write blocks until the data wraps
-            int remaining = maxBytesWritable;
-            int inputOffset = 0;
-            while (remaining > 0)
-            {
-                //Determine how many of this block we can read, up until the wrap
-                int preWrapBytes = Math.Min(remaining, bufferSize - writeIndex);
-
-                //Copy
-                Utils.Memcpy(bufferPtr + writeIndex, data + inputOffset, preWrapBytes * sizeof(T));
-
-                //Update
-                remaining -= preWrapBytes;
-                inputOffset += preWrapBytes;
-                writeIndex = (writeIndex + preWrapBytes) % bufferSize;
-                itemsWaiting += preWrapBytes;
-            }
-
-            return inputOffset;
+            int written = 0;
+            while (written < count && WriteOne(data[written], force))
+                written++;
+            return written;
         }
 
-        public int Read(T* output, int maxCount)
+        public int Read(T* output, int count)
         {
-            //Determine the number of bytes we're able to read
-            int maxBytesReadable = Math.Min(itemsWaiting, maxCount);
-
-            //Read blocks up until the data wraps
-            int remaining = maxBytesReadable;
-            int outputOffset = 0;
-            while (remaining > 0)
-            {
-                //Determine how many of this block we can read, up until the wrap
-                int preWrapBytes = Math.Min(remaining, bufferSize - readIndex);
-
-                //Copy
-                Utils.Memcpy(output + outputOffset, bufferPtr + readIndex, preWrapBytes * sizeof(T));
-
-                //Update
-                remaining -= preWrapBytes;
-                outputOffset += preWrapBytes;
-                readIndex = (readIndex + preWrapBytes) % bufferSize;
-                itemsWaiting -= preWrapBytes;
-            }
-
-            return outputOffset;
-        }
-
-        public int GetAvailable()
-        {
-            return itemsWaiting;
-        }
-
-        public int GetSpaceRemaining()
-        {
-            return bufferSize - itemsWaiting;
+            int read = 0;
+            while (read < count && ReadOne(output + read))
+                read++;
+            return read;
         }
 
         public void Dispose()

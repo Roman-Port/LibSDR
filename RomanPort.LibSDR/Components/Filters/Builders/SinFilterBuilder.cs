@@ -4,16 +4,18 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Components.Filters.Builders
 {
-    public class SinFilterBuilder : FilterBuilderBase
+    public class SinFilterBuilder : IFilterBuilderReal
     {
-        public SinFilterBuilder(float sampleRate, float frequency, int length) : base(sampleRate)
+        public SinFilterBuilder(float sampleRate, float frequency, int length)
         {
+            SampleRate = sampleRate;
             Frequency = frequency;
             Length = length;
         }
 
         private int length;
 
+        public float SampleRate { get; set; }
         public float Frequency { get; set; }
         public int Length
         {
@@ -32,7 +34,7 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
         private float FreqInRad { get => 2.0f * MathF.PI * Frequency / SampleRate; }
         private int HalfLength { get => Length / 2; }
 
-        public override float[] BuildFilter()
+        public float[] BuildFilterReal()
         {
             var freqInRad = FreqInRad;
             var taps = new float[length];
@@ -43,6 +45,16 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
                 taps[HalfLength - i] = -y;
             }
             return taps;
+        }
+
+        public void ValidateDecimation(int decimation)
+        {
+
+        }
+
+        public int GetDecimation(out float outputSampleRate)
+        {
+            throw new NotSupportedException();
         }
     }
 }

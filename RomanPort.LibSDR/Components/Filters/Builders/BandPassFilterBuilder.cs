@@ -4,7 +4,7 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Components.Filters.Builders
 {
-    public class BandPassFilterBuilder : FilterPassBuilderBase
+    public class BandPassFilterBuilder : FilterPassBuilderBase, IFilterBuilderReal, IFilterBuilderComplex
     {
         public BandPassFilterBuilder(float sampleRate, int lowCutoffFreq, int highCutoffFreq) : base(sampleRate)
         {
@@ -15,7 +15,9 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
         public int LowCutoffFreq { get; set; }
         public int HighCutoffFreq { get; set; }
 
-        public override float[] BuildFilter()
+        protected override float MaxFilterFreq => HighCutoffFreq;
+
+        public float[] BuildFilterReal()
         {
             float[] taps = new float[TapCount];
             float[] window = WindowUtil.MakeWindow(Window, TapCount);
@@ -44,6 +46,58 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
                 taps[i] *= gain;
 
             return taps;
+        }
+
+        public override void ValidateDecimation(int decimation)
+        {
+
+        }
+
+        public BandPassFilterBuilder SetAutomaticTapCount(float transitionWidth, float attenuation = 30)
+        {
+            _SetAutomaticTapCount(transitionWidth, attenuation);
+            return this;
+        }
+
+        public BandPassFilterBuilder SetManualTapCount(int taps)
+        {
+            _SetManualTapCount(taps);
+            return this;
+        }
+
+        public BandPassFilterBuilder SetWindow(WindowType window = WindowType.BlackmanHarris7)
+        {
+            _SetWindow(window);
+            return this;
+        }
+
+        public Complex[] BuildFilterComplex()
+        {
+            //Construct base filter
+            var baseTaps = new LowPassFilterBuilder(SampleRate, (HighCutoffFreq - LowCutoffFreq) / 2)
+                .SetManualTapCount(TapCount)
+                .SetWindow(Window)
+                .BuildFilterReal();
+
+            //Calculate freq
+            float freq = MathF.PI * (HighCutoffFreq + LowCutoffFreq) / SampleRate;
+
+            //Calculate initial phase
+            float phase;
+            if ((baseTaps.Length & 1) != 0)
+                phase = -freq * (baseTaps.Length >> 1);
+            else
+                phase = -freq / 2 * ((1 + 2 * baseTaps.Length) >> 1);
+
+            //Generate
+            Complex[] output = new Complex[TapCount];
+            for (int i = 0; i < baseTaps.Length; i++)
+            {
+                output[i] = new Complex(baseTaps[i] * MathF.Cos(phase), baseTaps[i] * MathF.Sin(phase));
+                phase += freq;
+            }
+
+            return output;
         }
     }
 }

@@ -21,6 +21,7 @@ namespace RomanPort.LibSDR.Components.IO.WAV
         public short BitsPerSample { get => info.bitsPerSample; }
         public int BytesPerSample { get => BitsPerSample / 8; }
         public long LengthSamples { get => (underlyingStream.Length - WavHeaderUtil.HEADER_LENGTH) / Channels / BytesPerSample; }
+        public double LengthSeconds { get => (double)LengthSamples / SampleRate; }
         public long PositionSamples
         {
             get => (underlyingStream.Position - WavHeaderUtil.HEADER_LENGTH) / Channels / BytesPerSample;

@@ -54,6 +54,7 @@ namespace RomanPort.LibSDR.Components.IO.WAV
 
         public void Dispose()
         {
+            FinalizeFile();
             writer.Dispose();
         }
     }

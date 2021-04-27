@@ -45,7 +45,8 @@ namespace RomanPort.LibSDR.UI.Framework
             imageBuffer = UnsafeBuffer.Create(canvasWidth * canvasHeight, out imageBufferPtr);
 
             //Apply
-            canvas.Image = new Bitmap(canvasWidth, canvasHeight, canvasWidth * sizeof(UnsafeColor), System.Drawing.Imaging.PixelFormat.Format32bppArgb, (IntPtr)imageBufferPtr);
+            if(canvasWidth > 0 && canvasHeight > 0)
+                canvas.Image = new Bitmap(canvasWidth, canvasHeight, canvasWidth * sizeof(UnsafeColor), System.Drawing.Imaging.PixelFormat.Format32bppArgb, (IntPtr)imageBufferPtr);
 
             //Run configure
             Configure(canvasWidth, canvasHeight);

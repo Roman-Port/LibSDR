@@ -438,16 +438,8 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
                 trackArtist = null;
                 stationName = null;
 
-                //Try to identify the type
-                bool cumulusMedia = rt.Contains(" - ") && rt.Contains(" On "); //Nothing Else Matters - METALLICA On KQRS
-                bool entercom = rt.StartsWith("Now playing ") && rt.Contains(" by ") && rt.Contains(" on "); //Now playing Hysteria by Def Leppard on JACK FM
-
-                //If we activated multiple, then abort
-                if (cumulusMedia && entercom)
-                    return false;
-
                 //Run
-                if (cumulusMedia)
+                if (rt.Contains(" - ") && rt.Contains(" On ")) //Nothing Else Matters - METALLICA On KQRS
                 {
                     //Get segments
                     int segArtist = rt.LastIndexOf(" - ");
@@ -459,10 +451,35 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
                     stationName = rt.Substring(segStation + 4);
                     return true;
                 }
-                if (entercom)
+                if (rt.Contains(" by ") && rt.Contains(" On ")) //CREEP by STONE TEMPLE PILOTS On 93X
+                {
+                    //Get segments
+                    int segArtist = rt.LastIndexOf(" by ");
+                    int segStation = rt.LastIndexOf(" On ");
+
+                    //Pull info
+                    trackTitle = rt.Substring(0, segArtist);
+                    trackArtist = rt.Substring(segArtist + 4, segStation - (segArtist + 4));
+                    stationName = rt.Substring(segStation + 4);
+                    return true;
+                }
+                if (rt.StartsWith("Now playing ") && rt.Contains(" by ") && rt.Contains(" on ")) //Now playing Hysteria by Def Leppard on JACK FM
                 {
                     //Get segments
                     int segTitle = "Now playing ".Length;
+                    int segArtist = rt.LastIndexOf(" by ");
+                    int segStation = rt.LastIndexOf(" on ");
+
+                    //Pull info
+                    trackTitle = rt.Substring(segTitle, segArtist - segTitle);
+                    trackArtist = rt.Substring(segArtist + 4, segStation - (segArtist + 4));
+                    stationName = rt.Substring(segStation + 4);
+                    return true;
+                }
+                if (rt.Contains(" by ") && rt.Contains(" on ")) //Hysteria by Def Leppard on JACK FM
+                {
+                    //Get segments
+                    int segTitle = 0;
                     int segArtist = rt.LastIndexOf(" by ");
                     int segStation = rt.LastIndexOf(" on ");
 
@@ -495,6 +512,7 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
         /// </summary>
         public void Reset()
         {
+            //Apply changes
             rdsSupported = false;
             piCode = 0;
             psComplete = false;
@@ -502,6 +520,13 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
             timeComplete = false;
             psBuffer = CreateEmptyBuffer(8);
             rtBuffer = CreateEmptyBuffer(64);
+
+            //Fire events
+            OnPsBufferUpdated?.Invoke(this, psBuffer);
+            OnPsNameUpdated?.Invoke(this, "");
+            OnRtTextUpdated?.Invoke(this, "");
+            OnRtBufferUpdated?.Invoke(this, rtBuffer);
+            OnRtBufferCleared?.Invoke(this);
             OnReset?.Invoke(this);
         }
     }

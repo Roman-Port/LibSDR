@@ -1,18 +1,22 @@
-﻿using System;
+﻿using RomanPort.LibSDR.Components.Decimators;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace RomanPort.LibSDR.Components.Filters
 {
-    public abstract class FilterPassBuilderBase : FilterBuilderBase
+    public abstract class FilterPassBuilderBase : IFilterBuilder
     {
-        public FilterPassBuilderBase(float sampleRate) : base(sampleRate)
+        public FilterPassBuilderBase(float sampleRate)
         {
-
+            SampleRate = sampleRate;
         }
+
+        public float SampleRate { get; set; }
 
         private bool tapsSet;
         private int taps;
+        private float transitionWidth;
 
         public int TapCount
         {
@@ -28,9 +32,11 @@ namespace RomanPort.LibSDR.Components.Filters
                 taps = value;
             }
         }
+        protected float TransitionWidth { get => transitionWidth; }
+
         public WindowType Window { get; set; } = WindowType.None;
 
-        public FilterPassBuilderBase SetAutomaticTapCount(float transitionWidth, float attenuation = 30)
+        protected void _SetAutomaticTapCount(float transitionWidth, float attenuation = 30)
         {
             //Validate
             if (transitionWidth <= 0)
@@ -42,24 +48,33 @@ namespace RomanPort.LibSDR.Components.Filters
                 count++;
             TapCount = count;
 
-            return this;
+            //Set
+            this.transitionWidth = transitionWidth;
         }
 
-        public FilterPassBuilderBase SetManualTapCount(int taps)
+        protected void _SetManualTapCount(int taps)
         {
             TapCount = taps;
-            return this;
         }
 
-        public FilterPassBuilderBase SetWindow(WindowType window = WindowType.BlackmanHarris7)
+        protected void _SetWindow(WindowType window = WindowType.BlackmanHarris7)
         {
             Window = window;
-            return this;
         }
 
         protected float[] UtilBuildWindow()
         {
             return WindowUtil.MakeWindow(Window, TapCount);
         }
+
+        protected abstract float MaxFilterFreq { get; }
+
+        public int GetDecimation(out float outputSampleRate)
+        {
+            float bw = MaxFilterFreq + TransitionWidth + TransitionWidth;
+            return DecimationUtil.CalculateDecimationRate(SampleRate, bw, out outputSampleRate);
+        }
+
+        public abstract void ValidateDecimation(int decimation);
     }
 }

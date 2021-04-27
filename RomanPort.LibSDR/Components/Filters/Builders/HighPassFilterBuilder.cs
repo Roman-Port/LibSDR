@@ -4,7 +4,7 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Components.Filters.Builders
 {
-    public class HighPassFilterBuilder : FilterPassBuilderBase
+    public class HighPassFilterBuilder : FilterPassBuilderBase, IFilterBuilderReal
     {
         public HighPassFilterBuilder(float sampleRate, int cutoffFreq) : base(sampleRate)
         {
@@ -13,7 +13,9 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
 
         public int CutoffFreq { get; set; }
 
-        public override float[] BuildFilter()
+        protected override float MaxFilterFreq => SampleRate / 2;
+
+        public float[] BuildFilterReal()
         {
             float[] taps = new float[TapCount];
             float[] window = WindowUtil.MakeWindow(Window, TapCount);
@@ -41,6 +43,29 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
                 taps[i] *= gain;
 
             return taps;
+        }
+
+        public override void ValidateDecimation(int decimation)
+        {
+
+        }
+
+        public HighPassFilterBuilder SetAutomaticTapCount(float transitionWidth, float attenuation = 30)
+        {
+            _SetAutomaticTapCount(transitionWidth, attenuation);
+            return this;
+        }
+
+        public HighPassFilterBuilder SetManualTapCount(int taps)
+        {
+            _SetManualTapCount(taps);
+            return this;
+        }
+
+        public HighPassFilterBuilder SetWindow(WindowType window = WindowType.BlackmanHarris7)
+        {
+            _SetWindow(window);
+            return this;
         }
     }
 }

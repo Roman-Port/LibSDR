@@ -64,18 +64,19 @@ namespace RomanPort.LibSDR.Components.Analog.Primitive
             return count;
         }
 
-        public void Configure(int bufferSize, float sampleRate)
+        public FmBasebandDemodulator Configure(int bufferSize, float sampleRate)
         {
             this.sampleRate = sampleRate;
-            Configure();
+            return Configure();
         }
 
-        private void Configure()
+        private FmBasebandDemodulator Configure()
         {
             if (fmDeviation != 0)
-                gain = sampleRate / (2 * MathF.PI * fmDeviation);
+                gain = sampleRate / (2 * MathF.PI * fmDeviation); //POSSIBLE BUG: do we swap these around?
             else
                 gain = 0;
+            return this;
         }
     }
 }

@@ -37,6 +37,15 @@ namespace RomanPort.LibSDR.UI
                 waterfallView.FftRange = value;
             }
         }
+        public int SpectrumHeight
+        {
+            get => spectrumView.Height;
+            set {
+                spectrumView.Height = value;
+                waterfallView.Top = value + 5;
+                waterfallView.Height = Height - value - 5;
+            }
+        }
 
         private UnsafeBuffer powerBuffer;
         private float* powerBufferPtr;

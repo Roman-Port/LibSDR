@@ -53,5 +53,11 @@ namespace RomanPort.LibSDR.Components
         {
             Buffer.MemoryCopy(src, dest, len, len);
         }
+
+        public static void Memcopy<T>(T* dest, T* src, long count) where T : unmanaged
+        {
+            long len = count * sizeof(T);
+            Buffer.MemoryCopy(src, dest, len, len);
+        }
     }
 }

@@ -9,37 +9,37 @@ namespace RomanPort.LibSDR.Components.Filters.FIR
     /// </summary>
     public unsafe class FloatFirFilter : IDisposable
     {
-        public FloatFirFilter(FilterBuilderBase builder, int decimation = 1) : this(builder.BuildFilter(), decimation)
+        public FloatFirFilter(IFilterBuilderReal builder, int decimation = 1) : this(builder.BuildFilterReal(), decimation)
         {
-
+            builder.ValidateDecimation(decimation);
         }
 
         public FloatFirFilter(float[] coeffs, int decimation = 1)
         {
             //Configure
-            this.decimation = decimation;
-            
-            //Create buffers
-            coefficientsHandle = UnsafeBuffer.Create(coeffs.Length, out coefficients);
-            coefficientsEnd = coefficients + coeffs.Length;
-            bufferHandle = UnsafeBuffer.Create(coeffs.Length, out buffer);
-
-            //Set coeffs
-            fixed (float* coeffsPtr = coeffs)
-                Utils.Memcpy(coefficients, coeffsPtr, coeffs.Length * sizeof(float));
             taps = coeffs.Length;
+            this.decimation = decimation;
+            bufferSize = taps;
+
+            //Create buffers
+            coeffsBuffer = UnsafeBuffer.Create(coeffs.Length, out coeffsBufferPtr);
+            insampBuffer = UnsafeBuffer.Create(bufferSize, out insampBufferPtr);
+
+            //Copy coeffs
+            for (int i = 0; i < coeffs.Length; i++)
+                coeffsBufferPtr[i] = coeffs[i];
         }
 
-        int decimation;
-        int decimationIndex;
+        private int taps;
+        private int decimation;
+        private int decimationIndex;
+        private int bufferSize;
+        private int offset;
 
-        UnsafeBuffer coefficientsHandle;
-        UnsafeBuffer bufferHandle;
-        float* coefficients;
-        float* coefficientsEnd;
-        float* buffer;
-        int taps;
-        int offset = 0;
+        private UnsafeBuffer coeffsBuffer;
+        private float* coeffsBufferPtr;
+        private UnsafeBuffer insampBuffer;
+        private float* insampBufferPtr;
 
         /// <summary>
         /// Processes the filter. Returns the number of samples processed. Returned count will never be larger than the input count, and will always match the input count if decimation == 1
@@ -62,48 +62,13 @@ namespace RomanPort.LibSDR.Components.Filters.FIR
         /// <returns></returns>
         public int Process(float* inPtr, float* outPtr, int count, int channels = 1)
         {
-            float* coeff;
-            float* bufferOffset;
-            int processed = 0;
-            for (int i = 0; i < count; i++)
-            {
-                //Write current value to the buffer
-                buffer[offset] = *inPtr;
-
-                //Check if we should process this
-                decimationIndex++;
-                if (decimationIndex == decimation)
-                {
-                    //Perform the filtering...
-                    coeff = coefficients;
-                    bufferOffset = buffer + offset;
-                    *outPtr = 0;
-                    while (bufferOffset >= buffer)
-                        *outPtr += *bufferOffset-- * *coeff++;
-                    bufferOffset = buffer + taps - 1;
-                    while (coeff < coefficientsEnd)
-                        *outPtr += *bufferOffset-- * *coeff++;
-
-                    //Update state
-                    processed++;
-                    outPtr += channels;
-                    decimationIndex = 0;
-                }
-
-                //Reset buffer loop if we go over
-                if (++offset >= taps)
-                    offset = 0;
-
-                //Update pointer
-                inPtr += channels;
-            }
-            return processed;
+            return FastFunctions.ApplyFilterFloat(inPtr, outPtr, count, channels, coeffsBufferPtr, taps, insampBufferPtr, ref offset, decimation, ref decimationIndex);
         }
 
         public void Dispose()
         {
-            coefficientsHandle.Dispose();
-            bufferHandle.Dispose();
+            coeffsBuffer.Dispose();
+            insampBuffer.Dispose();
         }
     }
 }

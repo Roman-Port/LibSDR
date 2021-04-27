@@ -12,8 +12,10 @@ namespace RomanPort.LibSDR.Components
 
         public static readonly Complex Zero = new Complex(0.0f, 0.0f);
         public static readonly Complex One = new Complex(1.0f, 0.0f);
+        public static readonly Complex NegativeOne = new Complex(-1.0f, 0.0f);
         public static readonly Complex Two = new Complex(2.0f, 0.0f);
         public static readonly Complex ImaginaryOne = new Complex(0.0f, 1.0f);
+        public static readonly Complex Inf = new Complex(float.PositiveInfinity, float.PositiveInfinity);
 
         public Complex(float real, float imaginary)
         {
@@ -25,6 +27,37 @@ namespace RomanPort.LibSDR.Components
         {
             Real = c.Real;
             Imag = c.Imag;
+        }
+
+        public static Complex FromPolar(float magnitude, float phase)
+        {
+            return new Complex((magnitude * MathF.Cos(phase)), (magnitude * MathF.Sin(phase)));
+        }
+
+        public float Mag()
+        {
+            float x = Math.Abs(Real);
+            float y = Math.Abs(Imag);
+
+            if (x > y)
+            {
+                float r = y / x;
+                return x * MathF.Sqrt(1 + r * r);
+            }
+            else if (y == 0)
+            {
+                return x;
+            }
+            else
+            {
+                float r = x / y;
+                return y * MathF.Sqrt(1 + r * r);
+            }
+        }
+
+        public float Abs()
+        {
+            return MathF.Abs(Real);
         }
 
         public float Modulus()

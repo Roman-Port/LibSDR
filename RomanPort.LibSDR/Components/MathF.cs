@@ -13,6 +13,11 @@ namespace RomanPort.LibSDR.Components
     {
         public const float PI = (float)Math.PI;
 
+        public static float Tan(float x)
+        {
+            return (float)Math.Tan(x);
+        }
+
         public static float Exp(float x)
         {
             return (float)Math.Exp(x);
@@ -51,6 +56,11 @@ namespace RomanPort.LibSDR.Components
         public static float Atan2(float x, float z)
         {
             return (float)Math.Atan2(x, z);
+        }
+
+        public static float Atan(float x)
+        {
+            return (float)Math.Atan(x);
         }
     }
 }

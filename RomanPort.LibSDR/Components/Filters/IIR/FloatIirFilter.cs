@@ -20,6 +20,11 @@ namespace RomanPort.LibSDR.Components.Filters.IIR
         private float _y1;
         private float _y2;
 
+        public FloatIirFilter(IirFilterType filterType, float frequency, float sampleRate, int qualityFactor)
+        {
+            Init(filterType, frequency, sampleRate, qualityFactor);
+        }
+
         public void Init(IirFilterType filterType, float frequency, float sampleRate, int qualityFactor)
         {
             var w0 = 2.0f * MathF.PI * frequency / sampleRate;

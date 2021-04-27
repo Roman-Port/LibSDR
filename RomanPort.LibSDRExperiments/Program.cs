@@ -7,60 +7,71 @@ using RomanPort.LibSDR.Components.Filters.IIR;
 using RomanPort.LibSDR.Components.General;
 using RomanPort.LibSDR.Components.IO.WAV;
 using RomanPort.LibSDR.Demodulators.Analog.Video;
+using RomanPort.LibSDR.Hardware.AirSpy;
+using RomanPort.LibSDR.IO.USB.LibUSB;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace RomanPort.LibSDRExperiments
 {
     unsafe class Program
     {
-        public const int SAMPLE_RATE = 44100;
-        public const int BAUD_RATE = 4160;
-        public const int BUFFER_SIZE = SAMPLE_RATE;
-
         static void Main(string[] args)
         {
-            //Open
-            FileStream fsIn = new FileStream("F:\\NOAAAPT_Sound.raw", FileMode.Open);
-            WavFileWriter fsOut = new WavFileWriter(new FileStream("F:\\noaa_test.wav", FileMode.Create), SAMPLE_RATE, 1, 16, BUFFER_SIZE);
-            byte[] fsBuffer = new byte[BUFFER_SIZE * sizeof(float)];
-            GCHandle fsHandle = GCHandle.Alloc(fsBuffer, GCHandleType.Pinned);
-            float* fsPtr = (float*)fsHandle.AddrOfPinnedObject();
+            LibUSBProvider provider = new LibUSBProvider();
+            var testd = provider.FindDevices(0x1d50, 0x60a1)[0];
+            testd.OpenDevice();
 
-            //Open demod
-            AptDemodulator apt = new AptDemodulator(SAMPLE_RATE, BUFFER_SIZE);
-            apt.OnFrame += Apt_OnFrame;
+            var b = new LibSDR.Components.IO.USB.UsbBuffer(512);
+            int testr = testd.BulkTransfer(LibSDR.Components.IO.USB.UsbTransferDirection.READ, 0x01, b, 1000);
 
-            //Read
-            while (true)
+
+            AirSpyDevice device = AirSpyDevice.OpenDevice(provider);
+            device.StartRx();
+            device.SampleRate = 10000000;
+            //device.SampleRate = 3000000;
+            
+            if(true)
             {
-                //Read
-                int count = fsIn.Read(fsBuffer, 0, fsBuffer.Length) / sizeof(float);
-                if (count == 0)
-                    break;
-
-                //Process
-                apt.ProcessFM(fsPtr, count);
+                device.CenterFrequency = 93700000;
+                device.SetLinearGain(6 / 21f);
+            } else
+            {
+                device.CenterFrequency = 144430000;
+                device.SetLinearGain(2 / 21f);
             }
 
-            fsOut.FinalizeFile();
-            img.SaveAsPng("F:\\test_noaa.png");
+            test = new WavFileWriter(new FileStream("F:\\test.wav", FileMode.Create), (int)device.SampleRate, 2, LibSDR.Components.IO.SampleFormat.Short16, 1 << 16);
+
+            UnsafeBuffer buffer = UnsafeBuffer.Create(1 << 16, out Complex* bufferPtr);
+            while(true)
+            {
+                int read = device.Read(bufferPtr, 1 << 16, 1000);
+                test.Write(bufferPtr, read);
+                test.FinalizeFile();
+            }
         }
 
-        private static void Apt_OnFrame(float* ptr, int width)
+        private static void A_OnTransferFailed(LibSDR.Components.IO.USB.IUsbAsyncTransfer transfer)
         {
-            for(int i = 0; i<width; i++)
-            {
-                byte p = (byte)(ptr[i] * 255);
-                img[pixel % img.Width, pixel / img.Width] = new Rgba32(p, p, p);
-                pixel++;
-            }
+            throw new NotImplementedException();
         }
 
-        static Image<Rgba32> img = new Image<Rgba32>(2080, 1000);
-        static int pixel = 0;
+        private static void A_OnTransferCompleted(LibSDR.Components.IO.USB.IUsbAsyncTransfer transfer, byte* bufferPtr, int count)
+        {
+            throw new NotImplementedException();
+        }
+
+        static WavFileWriter test;
+
+        private static void Device_OnSamples(LibSDR.Components.Interfaces.IRadioDevice device, Complex* ptr, int count)
+        {
+            test.Write(ptr, count);
+            test.FinalizeFile();
+        }
     }
 }
