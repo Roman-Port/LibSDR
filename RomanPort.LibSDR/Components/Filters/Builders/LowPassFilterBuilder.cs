@@ -5,7 +5,7 @@ using System.Text;
 
 namespace RomanPort.LibSDR.Components.Filters.Builders
 {
-    public class LowPassFilterBuilder : FilterPassBuilderBase, IFilterBuilderReal
+    public class LowPassFilterBuilder : FilterPassBuilderBase, IFilterBuilderReal, IFilterBuilderComplex
     {
         public LowPassFilterBuilder(float sampleRate, int cutoffFreq) : base(sampleRate)
         {
@@ -13,6 +13,7 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
         }
 
         public int CutoffFreq { get; set; }
+        public float Gain { get; set; } = 1;
 
         protected override float MaxFilterFreq => CutoffFreq;
 
@@ -43,6 +44,16 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
                 taps[i] *= gain;
 
             return taps;
+        }
+
+        public Complex[] BuildFilterComplex()
+        {
+            //Convert to complex
+            float[] realTaps = BuildFilterReal();
+            Complex[] complexTaps = new Complex[realTaps.Length];
+            for (int i = 0; i < realTaps.Length; i++)
+                complexTaps[i] = new Complex(realTaps[i], 0); //new Complex(realTaps[i], realTaps[i]); maybe?
+            return complexTaps;
         }
 
         public override void ValidateDecimation(int decimation)

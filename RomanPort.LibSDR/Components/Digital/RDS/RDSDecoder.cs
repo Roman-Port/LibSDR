@@ -2,6 +2,8 @@
 using RomanPort.LibSDR.Components.Filters;
 using RomanPort.LibSDR.Components.Filters.Builders;
 using RomanPort.LibSDR.Components.Filters.FIR;
+using RomanPort.LibSDR.Components.Filters.FIR.ComplexFilter;
+using RomanPort.LibSDR.Components.Filters.FIR.Real;
 using RomanPort.LibSDR.Components.Filters.IIR;
 using RomanPort.LibSDR.Components.General;
 using RomanPort.LibSDR.Components.IO;
@@ -60,12 +62,12 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
         private int workingBufferUsage;
 
         private Oscillator osc;
-        private ComplexFirFilter filter;
+        private IComplexFirFilter filter;
         private float decimatedSampleRate;
         private int decimationRate;
         private RDSBitDecoder bitDecoder;
         private Pll pll;
-        private FloatFirFilter matchedFilter;
+        private IRealFirFilter matchedFilter;
         private FloatIirFilter syncFilter;
 
         private float lastSync;
@@ -91,7 +93,7 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
             var filterBuilder = new LowPassFilterBuilder(sampleRate, RDS_BANDWIDTH)
                 .SetWindow()
                 .SetAutomaticTapCount(RDS_BANDWIDTH_TRANSITION, 20);
-            filter = new ComplexFirFilter(filterBuilder, decimationRate);
+            filter = ComplexFirFilter.CreateFirFilter(filterBuilder, decimationRate);
 
             //Old
             pll = new Pll();
@@ -105,7 +107,7 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
 
             var matchedFilterLength = (int)(decimatedSampleRate / RDS_BIT_RATE) | 1;
             var coefficients = new SinFilterBuilder(decimatedSampleRate, RDS_BIT_RATE, matchedFilterLength);
-            matchedFilter = new FloatFirFilter(coefficients);
+            matchedFilter = RealFirFilter.CreateFirFilter(coefficients);
 
             syncFilter = new FloatIirFilter(IirFilterType.BandPass, RDS_BIT_RATE, decimatedSampleRate, 500);
         }

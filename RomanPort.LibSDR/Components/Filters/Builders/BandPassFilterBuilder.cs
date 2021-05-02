@@ -93,7 +93,7 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
             Complex[] output = new Complex[TapCount];
             for (int i = 0; i < baseTaps.Length; i++)
             {
-                output[i] = new Complex(baseTaps[i] * MathF.Cos(phase), baseTaps[i] * MathF.Sin(phase));
+                output[i] = new Complex(baseTaps[i] * MathF.Sin(phase), baseTaps[i] * MathF.Cos(phase));
                 phase += freq;
             }
 

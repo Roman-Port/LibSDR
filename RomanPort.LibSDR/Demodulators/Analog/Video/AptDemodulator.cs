@@ -3,6 +3,7 @@ using RomanPort.LibSDR.Components.Analog.Primitive;
 using RomanPort.LibSDR.Components.Analog.Video;
 using RomanPort.LibSDR.Components.Filters.Builders;
 using RomanPort.LibSDR.Components.Filters.FIR;
+using RomanPort.LibSDR.Components.Filters.FIR.Real;
 using RomanPort.LibSDR.Components.General;
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Video
         private FmBasebandDemodulator fmDemod;
         private AmBasebandDemodulator amDemod;
         private Oscillator osc;
-        private FloatFirFilter filter;
+        private IRealFirFilter filter;
         private float symbolsPerSample;
         private float resampleOffset;
         private float resampleMax;
@@ -47,7 +48,7 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Video
             var filterBuilder = new LowPassFilterBuilder(sampleRate, 2080)
                 .SetAutomaticTapCount(200)
                 .SetWindow();
-            filter = new FloatFirFilter(filterBuilder);
+            filter = RealFirFilter.CreateFirFilter(filterBuilder);
 
             //Create buffer
             buffer?.Dispose();

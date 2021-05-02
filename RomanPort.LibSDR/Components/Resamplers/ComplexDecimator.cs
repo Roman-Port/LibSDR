@@ -1,4 +1,5 @@
 ﻿using RomanPort.LibSDR.Components.Filters.FIR;
+using RomanPort.LibSDR.Components.Filters.FIR.ComplexFilter;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -14,12 +15,12 @@ namespace RomanPort.LibSDR.Components.Resamplers
 
         private float sampleRate;
         private int decimationStages;
-        private ComplexFirFilter[] stages;
+        private IComplexFirFilter[] stages;
 
         private void Configure()
         {
             //Create stages
-            stages = new ComplexFirFilter[decimationStages];
+            stages = new IComplexFirFilter[decimationStages];
 
         }
     }

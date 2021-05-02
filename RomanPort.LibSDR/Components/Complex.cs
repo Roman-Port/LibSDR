@@ -1,10 +1,12 @@
 ﻿using RomanPort.LibSDR.Components;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace RomanPort.LibSDR.Components
 {
+    [StructLayout(LayoutKind.Sequential)]
     public struct Complex
     {
         public float Real;

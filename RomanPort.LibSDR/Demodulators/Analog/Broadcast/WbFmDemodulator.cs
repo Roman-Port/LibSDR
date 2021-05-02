@@ -14,6 +14,8 @@ using RomanPort.LibSDR.Components.Analog;
 using RomanPort.LibSDR.Components.Filters.IIR;
 using RomanPort.LibSDR.Components.General;
 using RomanPort.LibSDR.Components.IO.WAV;
+using RomanPort.LibSDR.Components.Filters.FIR.Real;
+using RomanPort.LibSDR.Components.Filters.FIR.ComplexFilter;
 
 namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
 {
@@ -67,11 +69,11 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
         private FmBasebandDemodulator fm;
         private DeemphasisProcessor deemphasisL;
         private DeemphasisProcessor deemphasisR;
-        private FloatFirFilter channelAFilter;
-        private FloatFirFilter channelBFilter;
-        private FloatFirFilter stereoMpxFilter;
+        private IRealFirFilter channelAFilter;
+        private IRealFirFilter channelBFilter;
+        private IRealFirFilter stereoMpxFilter;
         private PLL stereoPilotPll;
-        private TrueComplexFirFilter stereoPilotFilter;
+        private IComplexFirFilter stereoPilotFilter;
         private RDSDecoder rdsDemodulator;
 
         //Private vars
@@ -123,14 +125,14 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
                 .SetAutomaticTapCount(1500, 60)
                 .SetWindow(WindowType.BlackmanHarris7);
             audioDecimationRate = audioFilterBuilder.GetDecimation(out audioSampleRate);
-            channelAFilter = new FloatFirFilter(audioFilterBuilder, audioDecimationRate);
-            channelBFilter = new FloatFirFilter(audioFilterBuilder, audioDecimationRate);
+            channelAFilter = RealFirFilter.CreateFirFilter(audioFilterBuilder, audioDecimationRate);
+            channelBFilter = RealFirFilter.CreateFirFilter(audioFilterBuilder, audioDecimationRate);
 
             //Create stereo pilot filter
             var stereoPilotFilterParamsComplex = new BandPassFilterBuilder(decimatedSampleRate, STEREO_PILOT_FREQ - 1000, STEREO_PILOT_FREQ + 1000)
                .SetAutomaticTapCount(1500, 60)
                .SetWindow();
-            stereoPilotFilter = new TrueComplexFirFilter(stereoPilotFilterParamsComplex);
+            stereoPilotFilter = ComplexFirFilter.CreateFirFilter(stereoPilotFilterParamsComplex);
 
             //Create PLL for the stereo pilot
             stereoPilotPll = new PLL(decimatedSampleRate, 0.2f, 0.0001f, STEREO_PILOT_FREQ + STEREO_PILOT_MAX_ERROR, STEREO_PILOT_FREQ - STEREO_PILOT_MAX_ERROR);

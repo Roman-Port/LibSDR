@@ -18,7 +18,14 @@ namespace RomanPort.LibSDR.Components.IO.RAW
 
         public unsafe void Write(float* ptr, int count)
         {
-            while(count > 0)
+            //Clamp
+            for (int i = 0; i < count; i++)
+                ptr[i] = ptr[i] > 1 ? 1 : ptr[i];
+            for (int i = 0; i < count; i++)
+                ptr[i] = ptr[i] < -1 ? -1 : ptr[i];
+
+            //Loop
+            while (count > 0)
             {
                 //Calculate the number we can copy
                 int block = Math.Min(count, bufferSizeSamples);
