@@ -8,20 +8,37 @@ namespace RomanPort.LibSDR.Components
     public unsafe static class VolkApi
     {
         private const string DLL_NAME = "libvolk.so";
+        private const int MIN_VOLK_LIBSDR_VERSION = 2;
 
         public static readonly bool volkSupported;
         public static bool showVolkWarning = true;
 
         public static void WarnVolk()
         {
-            if (showVolkWarning)
+            if (showVolkWarning && !volkSupported)
                 Console.WriteLine("LibSDR: VOLK is not currently being used. While it isn't required, VOLK will immensely speed up filtering. It is highly recommended. To disable this warning, set RomanPort.LibSDR.Components.VolkApi.showVolkWarning to false.");
+            showVolkWarning = false;
         }
 
         static VolkApi()
         {
-            volkSupported = true;
+            int version;
+            try
+            {
+                version = libsdr_version();
+            }
+            catch
+            {
+                volkSupported = false;
+                return;
+            }
+            volkSupported = version >= MIN_VOLK_LIBSDR_VERSION;
+            if (!volkSupported)
+                throw new Exception($"LibSDR VOLK was detected, but is running an outdated version ({version}). Please upgrade it to >={MIN_VOLK_LIBSDR_VERSION} or remove it.");
         }
+
+        [DllImport(DLL_NAME)]
+        private static extern int libsdr_version();
 
         #region libsdr_filter_real
 

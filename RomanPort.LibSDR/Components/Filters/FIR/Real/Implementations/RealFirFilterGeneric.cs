@@ -28,6 +28,8 @@ namespace RomanPort.LibSDR.Components.Filters.FIR.Real.Implementations
             this.decimation = decimation;
             decimationIndex = 0;
             offset = 0;
+            for (int i = 0; i < coeffs.Length; i++)
+                coeffsBufferPtr[i] = coeffs[i];
         }
 
         public int Process(float* input, float* output, int count, int channels = 1)

@@ -52,7 +52,7 @@ namespace RomanPort.LibSDR.Components.Filters.Builders
             float[] realTaps = BuildFilterReal();
             Complex[] complexTaps = new Complex[realTaps.Length];
             for (int i = 0; i < realTaps.Length; i++)
-                complexTaps[i] = new Complex(realTaps[i], 0); //new Complex(realTaps[i], realTaps[i]); maybe?
+                complexTaps[i] = new Complex(realTaps[i], realTaps[i]); //new Complex(realTaps[i], 0); maybe? seems to fix crackle if I use the current method
             return complexTaps;
         }
 
