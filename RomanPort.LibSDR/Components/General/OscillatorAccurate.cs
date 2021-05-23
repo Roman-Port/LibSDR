@@ -8,16 +8,52 @@ namespace RomanPort.LibSDR.Components.General
     {
         public OscillatorAccurate(float sampleRate, float frequency)
         {
+            this.sampleRate = sampleRate;
+            this.frequency = frequency;
             phase = 0;
-            rotation = 2.0 * Math.PI * frequency / sampleRate;
+            Configure();
         }
+
+        public OscillatorAccurate()
+        {
+
+        }
+
+        private float sampleRate;
+        private float frequency;
 
         private double phase;
         private double rotation;
 
         public double Phase { get => phase; set => phase = value; }
 
-        void Tick()
+        public float SampleRate
+        {
+            get => sampleRate;
+            set
+            {
+                sampleRate = value;
+                Configure();
+            }
+        }
+
+        public float Frequency
+        {
+            get => frequency;
+            set
+            {
+                frequency = value;
+                Configure();
+            }
+        }
+
+        private void Configure()
+        {
+            if(sampleRate != 0)
+                rotation = 2.0 * Math.PI * frequency / sampleRate;
+        }
+
+        private void Tick()
         {
             phase += rotation;
             if (Math.Abs(phase) > Math.PI)

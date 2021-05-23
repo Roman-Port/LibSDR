@@ -84,7 +84,7 @@ namespace RomanPort.LibSDR.Components.Filters.FIR.ComplexFilter.Implementations
             //If we have an odd number of taps, apply the remaining bits
             if ((tapCount & 1) != 0)
             {
-                //*result += input[tapCount - 1] * taps[tapCount - 1];
+                *result += input[tapCount - 1] * taps[tapCount - 1];
             }
         }
 

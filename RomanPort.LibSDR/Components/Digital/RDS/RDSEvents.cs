@@ -20,6 +20,6 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
 
     //other
 
-    public delegate void RDSFrameDecoded(RDSFrame frame);
+    public delegate void RDSFrameDecoded(ulong frame);
     public delegate void RDSSyncStateChanged(bool sync);
 }

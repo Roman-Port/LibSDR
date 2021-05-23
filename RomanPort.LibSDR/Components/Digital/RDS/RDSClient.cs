@@ -406,7 +406,6 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
 
         public static bool TryGetCallsign(ushort code, out string callsign)
         {
-            code = ((ushort)((code & 0x00FF) << 8 | (code & 0xFF00) >> 8)); //Swap upper and lower bits, as this was originally written for the other way around
             char[] callLetters = new char[4];
             if (code > 21671)
             {

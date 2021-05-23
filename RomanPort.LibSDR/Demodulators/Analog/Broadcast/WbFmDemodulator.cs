@@ -16,12 +16,14 @@ using RomanPort.LibSDR.Components.General;
 using RomanPort.LibSDR.Components.IO.WAV;
 using RomanPort.LibSDR.Components.Filters.FIR.Real;
 using RomanPort.LibSDR.Components.Filters.FIR.ComplexFilter;
+using RomanPort.LibSDR.Components.Digital.RDS.Physical;
 
 namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
 {
     public delegate void StereoDetectedEventArgs(bool stereoDetected);
     public unsafe delegate void MpxDataEmitted(float* ptr, int count);
     public unsafe delegate void MpxSampleRateChangedEventArgs(float sampleRate);
+    public unsafe delegate void RdsFrameEmittedEventArgs(ulong frame);
 
     public unsafe class WbFmDemodulator : IAudioDemodulator, IDisposable
     {
@@ -37,6 +39,8 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
             deemphasisL = new DeemphasisProcessor();
             deemphasisR = new DeemphasisProcessor();
             rdsDemodulator = new RDSDecoder();
+            rdsDemodulator.OnSyncStateChanged += (bool sync) => OnRdsDetected?.Invoke(sync);
+            rdsDemodulator.OnFrameDecoded += (ulong frame) => OnRdsFrameEmitted?.Invoke(frame);
 
             //Apply defaults
             this.worker = worker;
@@ -47,6 +51,7 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
         //Public accessors
         public bool StereoEnabled { get; set; } = true;
         public bool StereoDetected { get => stereoPilotPll.IsLocked; }
+        public bool RdsDetected { get => rdsDemodulator.IsRdsSynced; }
         public float DeemphasisTime
         {
             get => deemphasisL.Time;
@@ -57,12 +62,13 @@ namespace RomanPort.LibSDR.Demodulators.Analog.Broadcast
             }
         }
         public float MpxSampleRate { get => sampleRate; }
-        public RDSDecoder Rds { get => rdsDemodulator; }
 
         //Public events
         public event StereoDetectedEventArgs OnStereoDetected;
+        public event StereoDetectedEventArgs OnRdsDetected;
         public event MpxDataEmitted OnMpxSamplesEmitted;
         public event MpxSampleRateChangedEventArgs OnMpxSampleRateChanged;
+        public event RdsFrameEmittedEventArgs OnRdsFrameEmitted;
 
         //Private bits
         private BackgroundWorker worker;

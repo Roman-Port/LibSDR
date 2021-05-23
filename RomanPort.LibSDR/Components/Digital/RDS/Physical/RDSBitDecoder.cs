@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace RomanPort.LibSDR.Components.Digital.RDS
+namespace RomanPort.LibSDR.Components.Digital.RDS.Physical
 {
     public class RDSBitDecoder
     {
@@ -111,13 +111,19 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
 					//If we get all blocks successfully, submit the frame
 					if (goodBlocks == 5)
                     {
-						RDSFrame frame = new RDSFrame
-						{
-							a = (ushort)group[0],
-							b = (ushort)group[1],
-							c = (ushort)group[2],
-							d = (ushort)group[3]
-						};
+						ulong frame = 0;
+						//Flip endianess of each block and write
+						for(int i = 0; i<4; i++)
+                        {
+							ulong inValue = (ulong)group[i] & 0xFFFF;
+							ulong outValue = 0;
+							int bitIn = 0;
+							int bitOut = 15;
+							for (int j = 0; j < 16; j++)
+								outValue |= ((inValue >> bitIn++) & 1) << bitOut--;
+							frame |= outValue << (16 * i);
+							//frame |= (ulong)group[i] << (16 * i);
+						}
 						OnFrameDecoded?.Invoke(frame);
 					}
 				}

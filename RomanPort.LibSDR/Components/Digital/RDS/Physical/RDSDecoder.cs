@@ -11,9 +11,9 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace RomanPort.LibSDR.Components.Digital.RDS
+namespace RomanPort.LibSDR.Components.Digital.RDS.Physical
 {
-    public unsafe class RDSDecoder : RDSClient
+    public unsafe class RDSDecoder
     {
         public RDSDecoder()
         {
@@ -137,9 +137,8 @@ namespace RomanPort.LibSDR.Components.Digital.RDS
             }
         }
 
-        private void BitDecoder_OnFrameDecoded(RDSFrame frame)
+        private void BitDecoder_OnFrameDecoded(ulong frame)
         {
-            ProcessFrame(frame);
             OnFrameDecoded?.Invoke(frame);
         }
 
