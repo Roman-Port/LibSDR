@@ -14,6 +14,8 @@ namespace RomanPort.LibSDR.Components.Digital.RDS.Client.Features
 
         public event RdsClientPi_CategoryChanged OnPiCodeChanged;
 
+        public ushort Value { get => pi; }
+
         public void ProcessCommand(RdsClient ctx, RdsCommand command)
         {
             //Check if it's changed
